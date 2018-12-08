@@ -1,40 +1,21 @@
 package org.monarchinitiative.dsppc;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.util.*;
-import java.util.stream.Collectors;
-
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.monarchinitiative.phenol.base.PhenolException;
-import org.monarchinitiative.phenol.formats.hpo.HpoGeneAnnotation;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 import org.monarchinitiative.phenol.formats.hpo.HpoOntology;
-import org.monarchinitiative.phenol.io.base.TermAnnotationParserException;
-import org.monarchinitiative.phenol.io.obo.hpo.HpOboParser;
-import org.monarchinitiative.phenol.io.obo.hpo.HpoGeneAnnotationParser;
 import org.monarchinitiative.phenol.ontology.algo.InformationContentComputation;
-import org.monarchinitiative.phenol.ontology.data.*;
+import org.monarchinitiative.phenol.ontology.data.TermId;
+import org.monarchinitiative.phenol.ontology.data.TermIds;
 import org.monarchinitiative.phenol.ontology.scoredist.ScoreDistribution;
-import org.monarchinitiative.phenol.ontology.scoredist.ScoreDistributions;
-import org.monarchinitiative.phenol.ontology.scoredist.ScoreSamplingOptions;
-import org.monarchinitiative.phenol.ontology.scoredist.SimilarityScoreSampling;
 import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
 import org.monarchinitiative.phenol.ontology.similarity.ResnikSimilarity;
-import org.monarchinitiative.phenol.io.obo.hpo.*;
-import org.monarchinitiative.phenol.formats.hpo.*;
+
+import java.util.*;
 
 
-// adapted from ComputeSimilarityDemo.java in phenol library
+// adapted from ComputeSimilarity.java in phenol library
 
 /**
  * App for computing similarity scores between gene (by entrez ID) and HPO term list.
@@ -42,58 +23,30 @@ import org.monarchinitiative.phenol.formats.hpo.*;
  * @author <a href="mailto:manuel.holtgrewe@bihealth.de">Manuel Holtgrewe</a>
  * @author <a href="mailto:peter.robinson@jax,org">Peter Robinson</a>
  */
-class ComputeSimilarityDemo {
+class ComputeSimilarity {
 
-
-    /**
-     * Number of threads to use.
-     */
+    private final Map<TermId, HpoDisease> diseaseMap;
+    private final HpoOntology hpo;
+    private final Set<TermId> gpiAnchoredGenes;
+    private final Set<TermId> gpiPathwayGenes;
     private final int numThreads = 4;
 
-    /**
-     * Command line arguments.
-     */
-    private final HpoOntology hpo;
+    private static final Logger logger = LogManager.getLogger();
 
-    /**
-     * Path to hp.obo file to read.
-     */
-    private String pathHpObo;
-
-    /**
-     * Path to {@code phenotype.hpoa}
-     */
-    private String pathPhenotypeHpoa;
-
-    /**
-     * Path to TSV file to read
-     */
-    private String pathTsvFile = "resources/omim-example.txt";
-
-    /**
-     * Construct with argument list.
-     *
-     * @param hpo HPO ontology.
-     */
-    ComputeSimilarityDemo(HpoOntology hpo) {
+    ComputeSimilarity(HpoOntology hpo, Map<TermId, HpoDisease> diseaseMap,
+                      Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
+        this.diseaseMap = diseaseMap;
+        this.gpiPathwayGenes = gpiPathway;
+        this.gpiAnchoredGenes = gpiAnchored;
     }
 
     /**
      * Run application.
      */
     void run() {
-        final Map<TermId, HpoDisease> diseaseMap;
-        try {
-            HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(this.pathPhenotypeHpoa, hpo);
-            diseaseMap = parser.parse();
-        } catch (PhenolException e) {
-            e.printStackTrace();
-            System.exit(1);
-            return; // javac complains otherwise
-        }
-        // Compute list of annoations and mapping from OMIM ID to term IDs.
-        System.out.println("Loading HPO to disease annotation file...");
+        // Compute mapping from OMIM ID to term IDs.
+        logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse...");
         final Map<TermId, Collection<TermId>> diseaseIdToTermIds = new HashMap<>();
         final Map<TermId, Collection<TermId>> termIdToDiseaseIds = new HashMap<>();
 
@@ -111,32 +64,30 @@ class ComputeSimilarityDemo {
             }
         }
 
-
         // Compute information content of HPO terms, given the term-to-gene annotation.
-        System.out.println("Performing IC precomputation...");
+        logger.info("Performing IC precomputation...");
         final Map<TermId, Double> icMap =
                 new InformationContentComputation(hpo)
                         .computeInformationContent(termIdToDiseaseIds);
-        System.out.println("DONE: Performing IC precomputation");
-//    int i=0;
+        logger.info("DONE: Performing IC precomputation");
+
 //    for (TermId t:icMap.keySet()) {
 //      System.out.println("IC-> "+t.getIdWithPrefix() + ": " + icMap.get(t));
 //    }
 
-
         // Initialize Resnik similarity precomputation
-        System.out.println("Performing Resnik precomputation...");
+        logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
                 new PrecomputingPairwiseResnikSimilarity(hpo, icMap, numThreads);
-        System.out.println("DONE: Performing Resnik precomputation");
+        logger.info("DONE: Performing Resnik precomputation");
         final ResnikSimilarity resnikSimilarity =
                 new ResnikSimilarity(pairwiseResnikSimilarity, false);
-        System.out.println(String.format("name: %s  params %s",
+        logger.info(String.format("name: %s  params %s",
                 resnikSimilarity.getName(),
                 resnikSimilarity.getParameters()));
         // example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
-        System.out.println("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());
+        logger.info("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());
         List<HpoDisease> valuesList = new ArrayList<>(diseaseMap.values());
         int randomIndex1 = new Random().nextInt(valuesList.size());
         HpoDisease randomDisease1 = valuesList.get(randomIndex1);
@@ -146,20 +97,14 @@ class ComputeSimilarityDemo {
         List<TermId> phenoAbnormalities1 = randomDisease1.getPhenotypicAbnormalityTermIdList();
         List<TermId> phenoAbnormalities2 = randomDisease2.getPhenotypicAbnormalityTermIdList();
 
-
         double similarity = resnikSimilarity.computeScore(phenoAbnormalities1,phenoAbnormalities2);
 
-        System.out.println(String.format("Similarity score between the query %s and the target disease %s was %.4f",
+        logger.info(String.format("Similarity score between the query %s and the target disease %s was %.4f",
                 randomDisease1.getName(),randomDisease2.getName(),similarity));
 
         //public final double computeScore(Collection<TermId> query, Collection<TermId> target) {
 
-
         // Temporary storage of term count to score distributions.
         final Map<Integer, ScoreDistribution> scoreDists = new HashMap<>();
-
-        // Read file line-by line and process.
-
-
     }
 }

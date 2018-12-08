@@ -1,6 +1,5 @@
 package org.monarchinitiative.dsppc;
 
-import com.google.common.collect.ImmutableSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.monarchinitiative.phenol.base.PhenolException;
@@ -23,7 +22,7 @@ import java.util.TreeSet;
 public class Dsppc {
     private static final String GENE_SETS_FILENAME = "src/main/resources/ENTREZ_gene_sets.tsv";
     private static final String HPO_FILENAME = "src/main/resources/hp.obo";
-    private static final String HPOA_FILENAME = "/src/main/resources/phenotype.hpoa";
+    private static final String HPOA_FILENAME = "src/main/resources/phenotype.hpoa";
     private final static String MIM2GENE_MEDGEN_FILENAME = "src/main/resources/mim2gene_medgen";
 
     private static final Logger logger = LogManager.getLogger();
@@ -82,25 +81,9 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         anchoredGenes.addAll(geneIds);
     }
 
-    private static void parseHPO() {
-        final HpoOntology hpo;
-        try {
-            hpo = new HpOboParser(new File(HPO_FILENAME)).parse();
-        } catch (IOException | PhenolException e) {
-            e.printStackTrace();
-            System.exit(1);
-            return; // javac complains otherwise
-        }
-        System.out.println("DONE: Loading HPO");
-        final Map<TermId, HpoDisease> diseaseMap;
-        try {
-            HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(HPOA_FILENAME, hpo);
-            diseaseMap = parser.parse();
-        } catch (PhenolException e) {
-            e.printStackTrace();
-            System.exit(1);
-            return; // javac complains otherwise
-        }
+    private static void parseDiseaseGene() {
+
+        // -
 
     }
 
@@ -115,8 +98,10 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
             logger.info("DONE: Loading HPO");
             HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(HPOA_FILENAME, hpo);
             diseaseMap = parser.parse();
+            logger.info("DONE: Parsing HPO disease annotations");
             parseGeneSets(gpiPathwayGenes, gpiAnchoredGenes);
-            new ComputeSimilarityDemo(hpo).run();
+            logger.info("DONE: Parsing gene sets");
+            new ComputeSimilarity(hpo, diseaseMap, gpiPathwayGenes, gpiAnchoredGenes).run();
         } catch (IOException | PhenolException e) {
             logger.fatal("Fatal error parsing inputs to similarity function. ", e);
         }
