@@ -14,10 +14,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 public class Dsppc {
     private static final String GENE_SETS_FILENAME = "src/main/resources/ENTREZ_gene_sets.tsv";
@@ -56,8 +53,8 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
     br.close();
     return bld.build();
   }
-
      */
+
     private static void parseGeneSets(Set<TermId> pathwayGenes, Set<TermId> anchoredGenes)
             throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(GENE_SETS_FILENAME));
@@ -79,16 +76,45 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         }
         // end of file marks end of the second set of genes
         anchoredGenes.addAll(geneIds);
+        br.close();
     }
 
-    private static void parseDiseaseGene() {
+    private static Map<TermId, Collection<TermId>> parseMedgen() throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(MIM2GENE_MEDGEN_FILENAME));
+        TermPrefix diseasePrefix = new TermPrefix("OMIM");
+        Collection<TermId> diseases;
+        String[] fields;
+        TermId diseaseId;
+        TermId geneId;
+        final Map<TermId, Collection<TermId>> geneIdToDiseaseIds = new HashMap<>();
+        TermPrefix genePrefix = new TermPrefix("ENTREZ");
 
-        // -
-
+        // skip over first line of file, which is a header line
+        String line = br.readLine();
+        while ((line = br.readLine()) != null) {
+            fields = line.split("\t");
+            if (fields[2].equals("phenotype") && !(fields[1].equals("-"))) {
+                diseaseId = new TermId(diseasePrefix, fields[0]);
+                geneId = new TermId(genePrefix, fields[1]);
+                diseases = geneIdToDiseaseIds.get(geneId);
+                if (diseases == null) {
+                    // this is the first disease for this gene
+                    diseases = new TreeSet<>();
+                    diseases.add(diseaseId);
+                    geneIdToDiseaseIds.put(geneId, diseases);
+                } else {
+                    // already saw one or more diseases for this gene, just add the current one
+                    diseases.add(diseaseId);
+                }
+            }
+        }
+        br.close();
+        return geneIdToDiseaseIds;
     }
 
     public static void main (String[] args) {
         final Map<TermId, HpoDisease> diseaseMap;
+        final Map<TermId, Collection<TermId>> geneToDiseasesMap;
         final Set<TermId> gpiAnchoredGenes = new TreeSet<>();
         final Set<TermId> gpiPathwayGenes = new TreeSet<>();
         final HpoOntology hpo;
@@ -99,9 +125,11 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
             HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(HPOA_FILENAME, hpo);
             diseaseMap = parser.parse();
             logger.info("DONE: Parsing HPO disease annotations");
+            geneToDiseasesMap = parseMedgen();
+            logger.info("DONE: Parsing gene to disease annotations");
             parseGeneSets(gpiPathwayGenes, gpiAnchoredGenes);
             logger.info("DONE: Parsing gene sets");
-            new ComputeSimilarity(hpo, diseaseMap, gpiPathwayGenes, gpiAnchoredGenes).run();
+            new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, gpiPathwayGenes, gpiAnchoredGenes).run();
         } catch (IOException | PhenolException e) {
             logger.fatal("Fatal error parsing inputs to similarity function. ", e);
         }

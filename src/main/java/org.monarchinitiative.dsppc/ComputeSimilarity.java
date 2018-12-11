@@ -27,6 +27,7 @@ class ComputeSimilarity {
 
     private final Map<TermId, HpoDisease> diseaseMap;
     private final HpoOntology hpo;
+    private final Map<TermId, Collection<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
     private final int numThreads = 4;
@@ -34,11 +35,13 @@ class ComputeSimilarity {
     private static final Logger logger = LogManager.getLogger();
 
     ComputeSimilarity(HpoOntology hpo, Map<TermId, HpoDisease> diseaseMap,
+                      Map<TermId, Collection<TermId>> geneToDiseasesMap,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
-        this.gpiPathwayGenes = gpiPathway;
-        this.gpiAnchoredGenes = gpiAnchored;
+        this.genesToDiseasesMap = geneToDiseasesMap;
+        gpiPathwayGenes = gpiPathway;
+        gpiAnchoredGenes = gpiAnchored;
     }
 
     /**
@@ -55,7 +58,8 @@ class ComputeSimilarity {
             List<TermId> hpoTerms = disease.getPhenotypicAbnormalityTermIdList();
             diseaseIdToTermIds.putIfAbsent(diseaseId, new HashSet<>());
             // add term anscestors
-            final Set<TermId> inclAncestorTermIds = TermIds.augmentWithAncestors(hpo, Sets.newHashSet(hpoTerms), true);
+            final Set<TermId> inclAncestorTermIds =
+                    TermIds.augmentWithAncestors(hpo, Sets.newHashSet(hpoTerms), true);
 
             for (TermId tid : inclAncestorTermIds) {
                 termIdToDiseaseIds.putIfAbsent(tid, new HashSet<>());
