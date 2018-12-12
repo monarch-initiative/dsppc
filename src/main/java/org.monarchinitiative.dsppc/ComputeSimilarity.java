@@ -45,10 +45,11 @@ class ComputeSimilarity {
     }
 
     /**
-     * Run application.
+     * Compute information content of each phenotype term associated with one or more diseases.
+     * @return map from phenotype TermId to its information content.
      */
-    void run() {
-        // Compute mapping from OMIM ID to term IDs.
+    private Map<TermId, Double> computeICmap() {
+        // Compute mapping from OMIM ID to phenotype TermIds and from phenotype to OMIM termId.
         logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse...");
         final Map<TermId, Collection<TermId>> diseaseIdToTermIds = new HashMap<>();
         final Map<TermId, Collection<TermId>> termIdToDiseaseIds = new HashMap<>();
@@ -74,12 +75,15 @@ class ComputeSimilarity {
                 new InformationContentComputation(hpo)
                         .computeInformationContent(termIdToDiseaseIds);
         logger.info("DONE: Performing IC precomputation");
+        return icMap;
+    }
 
-//    for (TermId t:icMap.keySet()) {
-//      System.out.println("IC-> "+t.getIdWithPrefix() + ": " + icMap.get(t));
-//    }
-
-        // Initialize Resnik similarity precomputation
+    /**
+     * Resnik similarity precomputation
+     * @param icMap map from phenotype TermId to information content
+     * @return ResnikSimilarity object (asymmetric score)
+     */
+    private ResnikSimilarity createResnik(Map<TermId, Double> icMap) {
         logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
                 new PrecomputingPairwiseResnikSimilarity(hpo, icMap, numThreads);
@@ -89,6 +93,50 @@ class ComputeSimilarity {
         logger.info(String.format("name: %s  params %s",
                 resnikSimilarity.getName(),
                 resnikSimilarity.getParameters()));
+        return resnikSimilarity;
+    }
+
+    private Set<TermId> diseasesToPhenotypes( int minDiseases, Collection<TermId> diseases ) {
+        Set<TermId> phenotypes = new HashSet<>();
+        // minDiseases = 0 means no filter on phenotypes
+        if (minDiseases < 2) {
+            diseases.forEach(d -> phenotypes.addAll(diseaseMap.get(d).getPhenotypicAbnormalityTermIdList()));
+        } else {
+            Map<TermId, Integer> counts = new HashMap<>();
+            for (TermId d : diseases) {
+                for (TermId p: diseaseMap.get(d).getPhenotypicAbnormalityTermIdList()) {
+                    counts.putIfAbsent(p, 0);
+                    counts.put(p, counts.get(p) + 1);
+                }
+            }
+            counts.forEach((pheno, count) -> { if (count >= minDiseases) phenotypes.add(pheno); });
+        }
+        return phenotypes;
+    }
+
+    /**
+     * Run application.
+     * @param minDiseases gpi pathway phenotype must appear in at least this number of diseases to be considered
+     * minDiseases = 0 means no filter on phenotypes
+     */
+    void run( int minDiseases ) {
+
+        Map<TermId, Double> icMap = computeICmap();
+        final ResnikSimilarity resnikSimilarity = createResnik(icMap);
+//    for (TermId t:icMap.keySet()) {
+//      System.out.println("IC-> "+t.getIdWithPrefix() + ": " + icMap.get(t));
+//    }
+        // create a set of diseases, a set of the associated phenotypes for genes in the GPI pathway
+        // if minDiseases > 0, filter out the phenotypes that occur in fewer diseases
+        Set<TermId> gpiPathwayDiseases = new HashSet<>();
+        gpiPathwayGenes.forEach(gene -> gpiPathwayDiseases.addAll(genesToDiseasesMap.get(gene)));
+        Set<TermId> gpiPathwayPhenotypes = diseasesToPhenotypes(minDiseases, gpiPathwayDiseases);
+
+        Map<TermId, Double> anchoredScores = new HashMap<>();
+        gpiAnchoredGenes.forEach(gene ->
+            anchoredScores.put(gene, resnikSimilarity.computeScore(gpiPathwayPhenotypes,
+                    diseasesToPhenotypes(0, genesToDiseasesMap.get(gene)))));
+
         // example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
         logger.info("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());
