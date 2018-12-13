@@ -79,14 +79,14 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         br.close();
     }
 
-    private static Map<TermId, Collection<TermId>> parseMedgen() throws IOException {
+    private static Map<TermId, Set<TermId>> parseMedgen() throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(MIM2GENE_MEDGEN_FILENAME));
         TermPrefix diseasePrefix = new TermPrefix("OMIM");
-        Collection<TermId> diseases;
+        Set<TermId> diseases;
         String[] fields;
         TermId diseaseId;
         TermId geneId;
-        final Map<TermId, Collection<TermId>> geneIdToDiseaseIds = new HashMap<>();
+        final Map<TermId, Set<TermId>> geneIdToDiseaseIds = new HashMap<>();
         TermPrefix genePrefix = new TermPrefix("ENTREZ");
 
         // skip over first line of file, which is a header line
@@ -112,13 +112,19 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         return geneIdToDiseaseIds;
     }
 
+    /*
+     * Optional command line argument to specific minimum number of diseases to decide whether a
+     * phenotype should be considered in the similarity function (defaults to 0, no minimum)
+     */
     public static void main (String[] args) {
         final Map<TermId, HpoDisease> diseaseMap;
-        final Map<TermId, Collection<TermId>> geneToDiseasesMap;
+        final Map<TermId, Set<TermId>> geneToDiseasesMap;
         final Set<TermId> gpiAnchoredGenes = new TreeSet<>();
         final Set<TermId> gpiPathwayGenes = new TreeSet<>();
         final HpoOntology hpo;
-        //final
+        final int minDiseases;
+
+        minDiseases = args.length > 0 ? Integer.parseInt(args[0]) : 0;
         try {
             hpo = new HpOboParser(new File(HPO_FILENAME)).parse();
             logger.info("DONE: Loading HPO");
@@ -129,7 +135,8 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
             logger.info("DONE: Parsing gene to disease annotations");
             parseGeneSets(gpiPathwayGenes, gpiAnchoredGenes);
             logger.info("DONE: Parsing gene sets");
-            new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, gpiPathwayGenes, gpiAnchoredGenes).run();
+            new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap,
+                    gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases);
         } catch (IOException | PhenolException e) {
             logger.fatal("Fatal error parsing inputs to similarity function. ", e);
         }

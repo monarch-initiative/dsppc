@@ -27,7 +27,7 @@ class ComputeSimilarity {
 
     private final Map<TermId, HpoDisease> diseaseMap;
     private final HpoOntology hpo;
-    private final Map<TermId, Collection<TermId>> genesToDiseasesMap;
+    private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
     private final int numThreads = 4;
@@ -35,7 +35,7 @@ class ComputeSimilarity {
     private static final Logger logger = LogManager.getLogger();
 
     ComputeSimilarity(HpoOntology hpo, Map<TermId, HpoDisease> diseaseMap,
-                      Map<TermId, Collection<TermId>> geneToDiseasesMap,
+                      Map<TermId, Set<TermId>> geneToDiseasesMap,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
@@ -114,30 +114,65 @@ class ComputeSimilarity {
         return phenotypes;
     }
 
+    private Set<TermId> genesToDiseases( Collection<TermId> geneIds ) {
+        Set<TermId> retSet = new HashSet<>();
+        Collection<TermId> diseasesForGene;
+
+        for (TermId geneId : geneIds) {
+            // skip over any gene for which there are no diseases in genesToDiseasesMap
+            diseasesForGene = genesToDiseasesMap.get(geneId);
+            if (diseasesForGene != null) {
+                retSet.addAll(diseasesForGene);
+            }
+        }
+        return retSet;
+    }
+
+    private double simfun1( Set<TermId> query, Map<TermId, Set<TermId>> targets, Map<TermId, Double> icMap) {
+        double score = 0.0;
+        ResnikSimilarity resnikSimilarity = createResnik(icMap);
+        for (Set<TermId> targetPheno : targets.values()) {
+            score += resnikSimilarity.computeScore(query, targetPheno);
+        }
+        return score;
+    }
+
+    private double simfun2( Set<TermId> query, Map<TermId, Set<TermId>> targets) {
+        double score = 0.0;
+//        final Set<TermId> queryTerms = getOntology().getAncestorTermIds(query, true);
+//        final Set<TermId> targetTerms = getOntology().getAncestorTermIds(target, true);
+//
+//        double maxValue = 0.0;
+//        for (TermId termId : queryTerms) {
+//            if (targetTerms.contains(termId)) {
+//                maxValue = Double.max(maxValue, getTermToIc().get(termId));
+//            }
+//        }
+//        return maxValue;
+
+        return score;
+    }
     /**
      * Run application.
      * @param minDiseases gpi pathway phenotype must appear in at least this number of diseases to be considered
      * minDiseases = 0 means no filter on phenotypes
      */
     void run( int minDiseases ) {
-
         Map<TermId, Double> icMap = computeICmap();
-        final ResnikSimilarity resnikSimilarity = createResnik(icMap);
-//    for (TermId t:icMap.keySet()) {
-//      System.out.println("IC-> "+t.getIdWithPrefix() + ": " + icMap.get(t));
-//    }
+
         // create a set of diseases, a set of the associated phenotypes for genes in the GPI pathway
         // if minDiseases > 0, filter out the phenotypes that occur in fewer diseases
-        Set<TermId> gpiPathwayDiseases = new HashSet<>();
-        gpiPathwayGenes.forEach(gene -> gpiPathwayDiseases.addAll(genesToDiseasesMap.get(gene)));
+        Set<TermId> gpiPathwayDiseases = genesToDiseases(gpiPathwayGenes);
         Set<TermId> gpiPathwayPhenotypes = diseasesToPhenotypes(minDiseases, gpiPathwayDiseases);
 
-        Map<TermId, Double> anchoredScores = new HashMap<>();
-        gpiAnchoredGenes.forEach(gene ->
-            anchoredScores.put(gene, resnikSimilarity.computeScore(gpiPathwayPhenotypes,
-                    diseasesToPhenotypes(0, genesToDiseasesMap.get(gene)))));
+        Map<TermId, Set<TermId>> gpiAnchoredPhenotypes = new HashMap<>();
+        gpiAnchoredGenes.forEach(geneId -> gpiAnchoredPhenotypes.put(geneId, diseasesToPhenotypes(0,
+                genesToDiseasesMap.getOrDefault(geneId, new HashSet<>()))));
 
-        // example of computing score between the sets of HPO terms that annotate two
+        logger.info(String.format("Similarity function 1 applied to GPI pathway genes, GPI anchored genes: %.2f",
+                simfun1(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, icMap)));
+
+        /* example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
         logger.info("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());
         List<HpoDisease> valuesList = new ArrayList<>(diseaseMap.values());
@@ -158,5 +193,6 @@ class ComputeSimilarity {
 
         // Temporary storage of term count to score distributions.
         final Map<Integer, ScoreDistribution> scoreDists = new HashMap<>();
+        */
     }
 }
