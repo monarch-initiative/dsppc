@@ -1,5 +1,6 @@
 package org.monarchinitiative.dsppc;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -8,7 +9,6 @@ import org.monarchinitiative.phenol.formats.hpo.HpoOntology;
 import org.monarchinitiative.phenol.ontology.algo.InformationContentComputation;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 import org.monarchinitiative.phenol.ontology.data.TermIds;
-import org.monarchinitiative.phenol.ontology.scoredist.ScoreDistribution;
 import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
 import org.monarchinitiative.phenol.ontology.similarity.ResnikSimilarity;
 
@@ -38,7 +38,17 @@ class ComputeSimilarity {
                       Map<TermId, Set<TermId>> geneToDiseasesMap,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
-        this.diseaseMap = diseaseMap;
+        /// Probably put this filter somewhere else!
+        Map<TermId,HpoDisease> omimMap = new HashMap<>();
+        for (TermId diseaseId : diseaseMap.keySet()) {
+            HpoDisease disease = diseaseMap.get(diseaseId);
+            if (disease.getDatabase().equals("OMIM")) {
+                omimMap.put(diseaseId,disease);
+            }
+        }
+        // ToDo -- there should be roughly 7000 OMIM entries after this filter.
+        this.diseaseMap=omimMap;
+
         this.genesToDiseasesMap = geneToDiseasesMap;
         gpiPathwayGenes = gpiPathway;
         gpiAnchoredGenes = gpiAnchored;
@@ -128,14 +138,69 @@ class ComputeSimilarity {
         return retSet;
     }
 
-    private double simfun1( Set<TermId> query, Map<TermId, Set<TermId>> targets, Map<TermId, Double> icMap) {
+    /**
+     * This function compares ALL phenotypes of EACH target gene to the set of phenotypes in the source diseases (e.g. GPI)
+     * @param source
+     * @param targets
+     * @param icMap
+     * @return
+     */
+    private double simfunAllPhenotypes(Set<TermId> source, Map<TermId, Set<TermId>> targets, Map<TermId, Double> icMap) {
         double score = 0.0;
         ResnikSimilarity resnikSimilarity = createResnik(icMap);
         for (Set<TermId> targetPheno : targets.values()) {
-            score += resnikSimilarity.computeScore(query, targetPheno);
+            score += resnikSimilarity.computeScore(source, targetPheno);
         }
         return score;
     }
+
+
+
+    /**
+     * This function finds the sum of the best matching phenotype of EACH target gene to the set of phenotypes in the source diseases (e.g. GPI)
+     * @param source
+     * @param targets
+     * @param icMap
+     * @return
+     */
+    private double simfunBestMatch( Set<TermId> source, Map<TermId, Set<TermId>> targets, Map<TermId, Double> icMap) {
+        double score = 0.0;
+        ResnikSimilarity resnikSimilarity = createResnik(icMap);
+        for (Set<TermId> targetPhenoSet : targets.values()) {
+            double max=0d;
+            for (TermId feature : targetPhenoSet) {
+                double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
+                if (tmp>max) max=tmp;
+            }
+            score += max;
+        }
+        return score;
+    }
+
+
+    /**
+     * This function finds the sum of those phenotype of EACH target gene to the set of phenotypes in the source diseases (e.g. GPI) and only counts matches that are above threshold
+     * @param source
+     * @param targets
+     * @param icMap
+     * @param threshold minimum IC matching score for a phenotype match between an HPO of targets and the terms in source
+     * @return
+     */
+    private double simfunAboveThreshold( Set<TermId> source, Map<TermId, Set<TermId>> targets, Map<TermId, Double> icMap, double threshold) {
+        double score = 0.0;
+        ResnikSimilarity resnikSimilarity = createResnik(icMap);
+        for (Set<TermId> targetPhenoSet : targets.values()) {
+            for (TermId feature : targetPhenoSet) {
+                double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
+                if (tmp>threshold)  score += tmp;
+            }
+        }
+        return score;
+    }
+
+
+
+
 
     private double simfun2( Set<TermId> query, Map<TermId, Set<TermId>> targets) {
         double score = 0.0;
@@ -170,7 +235,7 @@ class ComputeSimilarity {
                 genesToDiseasesMap.getOrDefault(geneId, new HashSet<>()))));
 
         logger.info(String.format("Similarity function 1 applied to GPI pathway genes, GPI anchored genes: %.2f",
-                simfun1(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, icMap)));
+                simfunAllPhenotypes(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, icMap)));
 
         /* example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)

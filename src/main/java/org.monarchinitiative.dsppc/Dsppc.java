@@ -70,7 +70,7 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
                 geneIds.clear();
             } else {
                 for (String s : line.split("\t")) {
-                    geneIds.add(new TermId(prefix, s));
+                    geneIds.add(TermId.of("ENTREZ", s));
                 }
             }
         }
@@ -94,8 +94,8 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         while ((line = br.readLine()) != null) {
             fields = line.split("\t");
             if (fields[2].equals("phenotype") && !(fields[1].equals("-"))) {
-                diseaseId = new TermId(diseasePrefix, fields[0]);
-                geneId = new TermId(genePrefix, fields[1]);
+                diseaseId = TermId.of(diseasePrefix, fields[0]);
+                geneId = TermId.of(genePrefix, fields[1]);
                 diseases = geneIdToDiseaseIds.get(geneId);
                 if (diseases == null) {
                     // this is the first disease for this gene
