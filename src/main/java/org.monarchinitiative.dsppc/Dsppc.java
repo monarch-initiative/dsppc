@@ -70,13 +70,23 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
                 geneIds.clear();
             } else {
                 for (String s : line.split("\t")) {
-                    geneIds.add(TermId.of("ENTREZ", s));
+                    geneIds.add(new TermId(prefix, s));
                 }
             }
         }
         // end of file marks end of the second set of genes
         anchoredGenes.addAll(geneIds);
         br.close();
+    }
+
+    private static Map<TermId, HpoDisease> parseHPOA(HpoOntology hpo) throws PhenolException {
+        HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(HPOA_FILENAME, hpo);
+        Map<TermId, HpoDisease> diseaseMap = parser.parse();
+        Map<TermId, HpoDisease> omimMap = new HashMap<>();
+        diseaseMap.forEach((diseaseId, disease) ->
+            { if (disease.getDatabase().equals("OMIM")) omimMap.put(diseaseId, disease); });
+        // There should be roughly 7000 OMIM entries left after filtering.
+        return omimMap;
     }
 
     private static Map<TermId, Set<TermId>> parseMedgen() throws IOException {
@@ -94,8 +104,8 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         while ((line = br.readLine()) != null) {
             fields = line.split("\t");
             if (fields[2].equals("phenotype") && !(fields[1].equals("-"))) {
-                diseaseId = TermId.of(diseasePrefix, fields[0]);
-                geneId = TermId.of(genePrefix, fields[1]);
+                diseaseId = new TermId(diseasePrefix, fields[0]);
+                geneId = new TermId(genePrefix, fields[1]);
                 diseases = geneIdToDiseaseIds.get(geneId);
                 if (diseases == null) {
                     // this is the first disease for this gene
@@ -114,7 +124,7 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
 
     /*
      * Optional command line argument to specific minimum number of diseases to decide whether a
-     * phenotype should be considered in the similarity function (defaults to 0, no minimum)
+     * phenotype should be considered in the similarity function (defaults to 1, no filtering)
      */
     public static void main (String[] args) {
         final Map<TermId, HpoDisease> diseaseMap;
@@ -124,12 +134,11 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         final HpoOntology hpo;
         final int minDiseases;
 
-        minDiseases = args.length > 0 ? Integer.parseInt(args[0]) : 0;
+        minDiseases = args.length > 0 ? Integer.parseInt(args[0]) : 1;
         try {
             hpo = new HpOboParser(new File(HPO_FILENAME)).parse();
             logger.info("DONE: Loading HPO");
-            HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(HPOA_FILENAME, hpo);
-            diseaseMap = parser.parse();
+            diseaseMap = parseHPOA(hpo);
             logger.info("DONE: Parsing HPO disease annotations");
             geneToDiseasesMap = parseMedgen();
             logger.info("DONE: Parsing gene to disease annotations");
