@@ -102,24 +102,24 @@ class ComputeSimilarity {
         Set<TermId> phenotypes = new HashSet<>();
         // minDiseases = 1 (or any integer < 2) means no filter on phenotypes
         if (minDiseases < 2) {
-            for (TermId did : diseaseIds) {
-                HpoDisease disease = diseaseMap.get(did);
+            for (TermId tid : diseaseIds) {
+                HpoDisease disease = diseaseMap.get(tid);
                 if (disease == null) {
-                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + did);
+                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid);
                 } else {
                     phenotypes.addAll(disease.getPhenotypicAbnormalityTermIdList());
                 }
             }
         } else { // filter phenotypes by minDiseases
             Map<TermId, Integer> counts = new HashMap<>();
-            for (TermId did : diseaseIds) {
-                HpoDisease disease = diseaseMap.get(did);
+            for (TermId tid0 : diseaseIds) {
+                HpoDisease disease = diseaseMap.get(tid0);
                 if (disease == null) {
-                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + did);
+                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid0);
                 } else {
-                    for (TermId p : disease.getPhenotypicAbnormalityTermIdList()) {
-                        counts.putIfAbsent(p, 0);
-                        counts.put(p, counts.get(p) + 1);
+                    for (TermId tid1 : disease.getPhenotypicAbnormalityTermIdList()) {
+                        counts.putIfAbsent(tid1, 0);
+                        counts.put(tid1, counts.get(tid1) + 1);
                     }
                 }
             }
@@ -132,9 +132,9 @@ class ComputeSimilarity {
         Set<TermId> retSet = new HashSet<>();
         Collection<TermId> diseasesForGene;
 
-        for (TermId geneId : geneIds) {
+        for (TermId tid : geneIds) {
             // skip over any gene for which there are no diseases in genesToDiseasesMap
-            diseasesForGene = genesToDiseasesMap.get(geneId);
+            diseasesForGene = genesToDiseasesMap.get(tid);
             if (diseasesForGene != null) {
                 retSet.addAll(diseasesForGene);
             }
@@ -146,13 +146,13 @@ class ComputeSimilarity {
      * This function finds the sum of those phenotype of EACH target gene to the set of phenotypes
      * in the source diseases (e.g. GPI) and only counts matches that are above threshold.
      * @param source    set of phenotype ids
-     * @param targets   map from gene id to set of phenotype ids
+     * @param targets   collection of sets of phenotype ids
      * @param threshold minimum IC matching score for a phenotype match between an HPO of targets and the terms in source
      * @return          similarity score
      */
-    private double simfunAboveThreshold( Set<TermId> source, Map<TermId, Set<TermId>> targets, double threshold) {
+    private double simfunAboveThreshold( Set<TermId> source, Collection<Set<TermId>> targets, double threshold) {
         double score = 0.0;
-        for (Set<TermId> targetPhenoSet : targets.values()) {
+        for (Set<TermId> targetPhenoSet : targets) {
             for (TermId feature : targetPhenoSet) {
                 double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
                 if (tmp>threshold)  score += tmp;
@@ -165,12 +165,12 @@ class ComputeSimilarity {
      * This function compares ALL phenotypes of EACH target gene to the set of phenotypes
      * in the source diseases (e.g. GPI).
      * @param source  set of phenotype ids
-     * @param targets map from gene id to set of phenotype ids
+     * @param targets collection of sets of phenotype ids
      * @return        similarity score
      */
-    private double simfunAllPhenotypes(Set<TermId> source, Map<TermId, Set<TermId>> targets) {
+    private double simfunAllPhenotypes(Set<TermId> source, Collection<Set<TermId>> targets) {
         double score = 0.0;
-        for (Set<TermId> targetPheno : targets.values()) {
+        for (Set<TermId> targetPheno : targets) {
             score += resnikSimilarity.computeScore(source, targetPheno);
         }
         return score;
@@ -180,12 +180,12 @@ class ComputeSimilarity {
      * This function finds the sum of the best matching phenotype of EACH target gene to
      * the set of phenotypes in the source diseases (e.g. GPI).
      * @param source  set of phenotype ids
-     * @param targets map from gene id to set of phenotype ids
+     * @param targets collection of sets of phenotype ids
      * @return        similarity score
      */
-    private double simfunBestMatch( Set<TermId> source, Map<TermId, Set<TermId>> targets ) {
+    private double simfunBestMatch( Set<TermId> source, Collection<Set<TermId>> targets ) {
         double score = 0.0;
-        for (Set<TermId> targetPhenoSet : targets.values()) {
+        for (Set<TermId> targetPhenoSet : targets) {
             double max=0d;
             for (TermId feature : targetPhenoSet) {
                 double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
@@ -210,21 +210,27 @@ class ComputeSimilarity {
         Set<TermId> gpiPathwayPhenotypes = diseasesToPhenotypes(minDiseases, gpiPathwayDiseases);
 
         Map<TermId, Set<TermId>> gpiAnchoredPhenotypes = new HashMap<>();
-        gpiAnchoredGenes.forEach(geneId -> gpiAnchoredPhenotypes.put(geneId, diseasesToPhenotypes(1,
-                genesToDiseasesMap.getOrDefault(geneId, new HashSet<>()))));
+//        gpiAnchoredGenes.forEach(tid -> gpiAnchoredPhenotypes.put(geneId, diseasesToPhenotypes(1,
+//                genesToDiseasesMap.getOrDefault(tid, new HashSet<>()))));
+
+        for (TermId tid : gpiAnchoredGenes) {
+            Set<TermId> diseases = genesToDiseasesMap.getOrDefault(tid, new HashSet<>());
+//            if (diseases.size() > 0) System.out.println(geneId.getIdWithPrefix() + " " + diseases.size());
+            gpiAnchoredPhenotypes.put(tid, diseasesToPhenotypes(1, diseases));
+        }
 
         logger.info(String.format(
                 "Similarity function allPhenotypes applied to GPI pathway genes, GPI anchored genes: %.2f",
-                simfunAllPhenotypes(gpiPathwayPhenotypes, gpiAnchoredPhenotypes)));
+                simfunAllPhenotypes(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values())));
 
         logger.info(String.format(
                 "Similarity function bestMatch applied to GPI pathway genes, GPI anchored genes: %.2f",
-                simfunBestMatch(gpiPathwayPhenotypes, gpiAnchoredPhenotypes)));
+                simfunBestMatch(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values())));
 
         if (threshold > -1.0) {
             logger.info(String.format(
                     "Similarity function aboveThreshold (%.2f) applied to GPI pathway genes, GPI anchored genes: %.2f",
-                    threshold, simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, threshold)));
+                    threshold, simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values(), threshold)));
         }
         /* example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
