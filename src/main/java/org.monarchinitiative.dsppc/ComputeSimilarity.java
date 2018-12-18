@@ -143,6 +143,25 @@ class ComputeSimilarity {
     }
 
     /**
+     * This function finds the sum of those phenotype of EACH target gene to the set of phenotypes
+     * in the source diseases (e.g. GPI) and only counts matches that are above threshold.
+     * @param source    set of phenotype ids
+     * @param targets   map from gene id to set of phenotype ids
+     * @param threshold minimum IC matching score for a phenotype match between an HPO of targets and the terms in source
+     * @return          similarity score
+     */
+    private double simfunAboveThreshold( Set<TermId> source, Map<TermId, Set<TermId>> targets, double threshold) {
+        double score = 0.0;
+        for (Set<TermId> targetPhenoSet : targets.values()) {
+            for (TermId feature : targetPhenoSet) {
+                double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
+                if (tmp>threshold)  score += tmp;
+            }
+        }
+        return score;
+    }
+
+    /**
      * This function compares ALL phenotypes of EACH target gene to the set of phenotypes
      * in the source diseases (e.g. GPI).
      * @param source  set of phenotype ids
@@ -153,25 +172,6 @@ class ComputeSimilarity {
         double score = 0.0;
         for (Set<TermId> targetPheno : targets.values()) {
             score += resnikSimilarity.computeScore(source, targetPheno);
-        }
-        return score;
-    }
-
-    /**
-     * This function finds the sum of those phenotype of EACH target gene to the set of phenotypes
-     * in the source diseases (e.g. GPI) and only counts matches that are above threshold.
-     * @param source    set of phenotype ids
-     * @param targets   map from gene id to set of phenotype ids
-     * @param threshold minimum IC matching score for a phenotype match between an HPO of targets and the terms in source
-     * @return          similarity score
-     */
-    private double simfunAboveThreshold( Set<TermId> source, Map<TermId, Set<TermId>> targets, double threshold) {
-        double score = 0.0;
-       for (Set<TermId> targetPhenoSet : targets.values()) {
-            for (TermId feature : targetPhenoSet) {
-                double tmp = resnikSimilarity.computeScore(source, ImmutableSet.of(feature));
-                if (tmp>threshold)  score += tmp;
-            }
         }
         return score;
     }
@@ -197,11 +197,13 @@ class ComputeSimilarity {
     }
 
     /**
-     * Run application.
+     * Run randomization.
      * @param minDiseases gpi pathway phenotype must appear in at least this number of diseases to be considered
      * minDiseases = 0 means no filter on phenotypes
+     * @param threshold   minimum info content of phenotype to be counted in simfunAboveThreshold calculation
+     * threshold = -1 means skip simfunAboveThreshold
      */
-    void run( int minDiseases ) {
+    void run( int minDiseases, double threshold ) {
         // create a set of diseases, a set of the associated phenotypes for genes in the GPI pathway
         // if minDiseases > 1, filter out the phenotypes that occur in fewer diseases
         Set<TermId> gpiPathwayDiseases = genesToDiseases(gpiPathwayGenes);
@@ -219,10 +221,11 @@ class ComputeSimilarity {
                 "Similarity function bestMatch applied to GPI pathway genes, GPI anchored genes: %.2f",
                 simfunBestMatch(gpiPathwayPhenotypes, gpiAnchoredPhenotypes)));
 
-        logger.info(String.format(
-                "Similarity function aboveThreshold (%.2f) applied to GPI pathway genes, GPI anchored genes: %.2f",
-                0.3, simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, 0.3)));
-
+        if (threshold > -1.0) {
+            logger.info(String.format(
+                    "Similarity function aboveThreshold (%.2f) applied to GPI pathway genes, GPI anchored genes: %.2f",
+                    threshold, simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes, threshold)));
+        }
         /* example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
         logger.info("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());

@@ -103,7 +103,8 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         String line = br.readLine();
         while ((line = br.readLine()) != null) {
             fields = line.split("\t");
-            if (fields[2].equals("phenotype") && !(fields[1].equals("-"))) {
+            if (fields[2].equals("phenotype") &&
+                    !(fields[1].equals("-") || fields[5].equals("nondisease"))) {
                 diseaseId = new TermId(diseasePrefix, fields[0]);
                 geneId = new TermId(genePrefix, fields[1]);
                 diseases = geneIdToDiseaseIds.get(geneId);
@@ -133,8 +134,11 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
         final Set<TermId> gpiPathwayGenes = new TreeSet<>();
         final HpoOntology hpo;
         final int minDiseases;
+        final double threshold;
 
+        // TODO fix up the parsing of command line arguments
         minDiseases = args.length > 0 ? Integer.parseInt(args[0]) : 1;
+        threshold = args.length == 2 ? Double.parseDouble(args[1]) : 0.5;
         try {
             hpo = new HpOboParser(new File(HPO_FILENAME)).parse();
             logger.info("DONE: Loading HPO");
@@ -145,7 +149,7 @@ gene.sets[[2]] <- as.set(unlist(lapply(collector, as.integer)))
             parseGeneSets(gpiPathwayGenes, gpiAnchoredGenes);
             logger.info("DONE: Parsing gene sets");
             new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap,
-                    gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases);
+                    gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases, threshold);
         } catch (IOException | PhenolException e) {
             logger.fatal("Fatal error parsing inputs to similarity function. ", e);
         }
