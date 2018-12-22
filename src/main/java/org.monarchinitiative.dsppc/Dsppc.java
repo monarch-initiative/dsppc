@@ -127,18 +127,31 @@ public class Dsppc {
         br.close();
     }
 
+    /**
+     * Parses the phenotype.hpoa file.
+     * @param inputPath      path to phenotype.hpoa file
+     * @param hpo            ontology object
+     * @return map from OMIM TermId to corresponding HpoDisease object
+     * @throws PhenolException if error in parsing phenotype.hpoa file
+     */
     private static Map<TermId, HpoDisease> parseHPOA(String inputPath, HpoOntology hpo) throws PhenolException {
         HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(inputPath, hpo);
         Map<TermId, HpoDisease> diseaseMap = parser.parse();
         Map<TermId, HpoDisease> omimMap = new HashMap<>();
-        diseaseMap.forEach((diseaseId, disease) ->
+        diseaseMap.forEach((tid, disease) ->
         {
-            if (disease.getDatabase().equals("OMIM")) omimMap.put(diseaseId, disease);
+            if (disease.getDatabase().equals("OMIM")) omimMap.put(tid, disease);
         });
         // There should be roughly 7000 OMIM entries left after filtering.
         return omimMap;
     }
 
+    /**
+     * Parses the mim2gene_medgen file to find OMIM diseases for each ENTREZ gene mentioned
+     * @param inputPath       path to mim2gene_medgen file
+     * @return map from ENTREZ gene TermId to set of OMIM disease TermIds
+     * @throws IOException if cannot open/read mim2gene_medgen file
+     */
     private static Map<TermId, Set<TermId>> parseMedgen(String inputPath) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         TermPrefix diseasePrefix = new TermPrefix("OMIM");
@@ -200,7 +213,7 @@ public class Dsppc {
                 new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap,
                         gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases, threshold);
             } catch (IOException | PhenolException e) {
-                logger.fatal("Fatal error parsing inputs to similarity function. ", e);
+                logger.fatal("Fatal error parsing inputs to dsppc. ", e);
             }
         }
     }

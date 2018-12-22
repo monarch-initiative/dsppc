@@ -1,7 +1,6 @@
 package org.monarchinitiative.dsppc;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
@@ -46,27 +45,42 @@ class ComputeSimilarity {
     }
 
     /**
-     * Compute information content of each phenotype term associated with one or more diseases.
+     * Compute information content of each phenotype term associated with one or more genes.
      * @return map from phenotype TermId to its information content.
      */
     private Map<TermId, Double> computeICmap() {
+        /*
         // Compute mapping from OMIM ID to phenotype TermIds and from phenotype to OMIM termId.
-        logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse...");
+        logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse");
         final Map<TermId, Collection<TermId>> diseaseIdToTermIds = new HashMap<>();
         final Map<TermId, Collection<TermId>> termIdToDiseaseIds = new HashMap<>();
 
-        for (TermId diseaseId : diseaseMap.keySet()) {
-            HpoDisease disease = diseaseMap.get(diseaseId);
+        for (TermId tid0 : diseaseMap.keySet()) {
+            HpoDisease disease = diseaseMap.get(tid0);
             List<TermId> hpoTerms = disease.getPhenotypicAbnormalityTermIdList();
-            diseaseIdToTermIds.putIfAbsent(diseaseId, new HashSet<>());
+            diseaseIdToTermIds.putIfAbsent(tid0, new HashSet<>());
             // add term anscestors
             final Set<TermId> inclAncestorTermIds =
                     TermIds.augmentWithAncestors(hpo, Sets.newHashSet(hpoTerms), true);
 
-            for (TermId tid : inclAncestorTermIds) {
-                termIdToDiseaseIds.putIfAbsent(tid, new HashSet<>());
-                termIdToDiseaseIds.get(tid).add(diseaseId);
-                diseaseIdToTermIds.get(diseaseId).add(tid);
+            for (TermId tid1 : inclAncestorTermIds) {
+                termIdToDiseaseIds.putIfAbsent(tid1, new HashSet<>());
+                termIdToDiseaseIds.get(tid1).add(tid0);
+                diseaseIdToTermIds.get(tid0).add(tid1);
+            }
+        }
+        */
+        final Map<TermId, Collection<TermId>> termIdToGeneIds = new HashMap<>();
+        Set<TermId> phenoSet;
+        for (TermId tid0 : genesToDiseasesMap.keySet()) {
+            phenoSet = diseasesToPhenotypes(1, genesToDiseasesMap.get(tid0));
+            // add term anscestors
+            final Set<TermId> inclAncestorTermIds =
+                    TermIds.augmentWithAncestors(hpo, phenoSet, true);
+
+            for (TermId tid1 : inclAncestorTermIds) {
+                termIdToGeneIds.putIfAbsent(tid1, new HashSet<>());
+                termIdToGeneIds.get(tid1).add(tid0);
             }
         }
 
@@ -74,7 +88,7 @@ class ComputeSimilarity {
         logger.info("Performing IC precomputation...");
         final Map<TermId, Double> icMap =
                 new InformationContentComputation(hpo)
-                        .computeInformationContent(termIdToDiseaseIds);
+                        .computeInformationContent(termIdToGeneIds);
         logger.info("DONE: Performing IC precomputation");
         return icMap;
     }
@@ -98,6 +112,12 @@ class ComputeSimilarity {
         return resnikSimilarity;
     }
 
+    /**
+     * Finds set of phenotype ids that are associated with (minDiseases or more) of the input diseases
+     * @param minDiseases  integer to filter phenotypes: only keep those that occur in at least minDiseases
+     * @param diseaseIds   set of disease TermIds
+     * @return set of TermIds for phenotypes associated with at least minDiseases of the diseases
+     */
     private Set<TermId> diseasesToPhenotypes( int minDiseases, Collection<TermId> diseaseIds ) {
         Set<TermId> phenotypes = new HashSet<>();
         // minDiseases = 1 (or any integer < 2) means no filter on phenotypes
