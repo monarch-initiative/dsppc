@@ -24,24 +24,32 @@ import java.util.*;
 class ComputeSimilarity {
 
     private final Map<TermId, HpoDisease> diseaseMap;
+    private final List<TermId> allGenes;
     private final HpoOntology hpo;
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
+    private final Random rand;
     private final ResnikSimilarity resnikSimilarity;
 
     private static final Logger logger = LogManager.getLogger();
-    private static final int numThreads = 4;
+    private static final int NUM_ITER = 1000;
+    private static final int NUM_THREADS = 4;
 
     ComputeSimilarity(HpoOntology hpo, Map<TermId, HpoDisease> diseaseMap,
-                      Map<TermId, Set<TermId>> geneToDiseasesMap,
+                      Map<TermId, Set<TermId>> geneToDiseasesMap, List<TermId> allGenes,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
+        this.allGenes = allGenes;
         gpiPathwayGenes = gpiPathway;
         gpiAnchoredGenes = gpiAnchored;
+        // delete the GPI pathway genes from the set over which we will randomly choose genes
+        // to compare to the GPI pathway genes
+        this.allGenes.removeAll(gpiPathwayGenes);
         resnikSimilarity = createResnik();
+        rand = new Random();
     }
 
     /**
@@ -101,7 +109,7 @@ class ComputeSimilarity {
         Map<TermId, Double> icMap = computeICmap();
         logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
-                new PrecomputingPairwiseResnikSimilarity(hpo, icMap, numThreads);
+                new PrecomputingPairwiseResnikSimilarity(hpo, icMap, NUM_THREADS);
         logger.info("DONE: Performing Resnik precomputation");
 
         final ResnikSimilarity resnikSimilarity =
@@ -163,6 +171,20 @@ class ComputeSimilarity {
     }
 
     /**
+     * Selects a random sample of the specified size from allGenes
+     * @param desiredSize  how big the random sample should be
+     * @param upperLimit   largest index value for allGenes
+     * @return Set of ENTREZ TermIds selected at random from allGenes
+     */
+    private Set<TermId> randomSample(int desiredSize, int upperLimit) {
+        Set<TermId> sample = new HashSet<>();
+        while (sample.size() < desiredSize) {
+            sample.add(allGenes.get(rand.nextInt(upperLimit)));
+        }
+        return sample;
+    }
+
+    /**
      * This function finds the sum of those phenotype of EACH target gene to the set of phenotypes
      * in the source diseases (e.g. GPI) and only counts matches that are above threshold.
      * @param source    set of phenotype ids
@@ -217,6 +239,23 @@ class ComputeSimilarity {
     }
 
     /**
+     * For each gene in input set, finds phenotypes of diseases related to that gene
+     * @param targetGenes genes for which phenotypes are sought
+     * @return map from gene TermId to set of phenotype TermIds for diseases related to that gene
+     */
+    private Map<TermId, Set<TermId>> targetPhenotypes(Set<TermId> targetGenes) {
+        Map<TermId, Set<TermId>> phenotypesByGene = new HashMap<>();
+//        targetGenes.forEach(tid -> phenotypesByGene.put(tid, diseasesToPhenotypes(1,
+//                genesToDiseasesMap.getOrDefault(tid, new HashSet<>()))));
+        for (TermId tid : targetGenes) {
+            Set<TermId> diseases = genesToDiseasesMap.getOrDefault(tid, new HashSet<>());
+//            if (diseases.size() > 0) System.out.println(tid.getIdWithPrefix() + " " + diseases.size());
+            phenotypesByGene.put(tid, diseasesToPhenotypes(1, diseases));
+        }
+        return phenotypesByGene;
+    }
+
+    /**
      * Run randomization.
      * @param minDiseases gpi pathway phenotype must appear in at least this number of diseases to be considered
      * minDiseases = 0 means no filter on phenotypes
@@ -228,30 +267,59 @@ class ComputeSimilarity {
         // if minDiseases > 1, filter out the phenotypes that occur in fewer diseases
         Set<TermId> gpiPathwayDiseases = genesToDiseases(gpiPathwayGenes);
         Set<TermId> gpiPathwayPhenotypes = diseasesToPhenotypes(minDiseases, gpiPathwayDiseases);
+        double sim1;
+        double sim2;
+        double sim3 = 0.0;
 
-        Map<TermId, Set<TermId>> gpiAnchoredPhenotypes = new HashMap<>();
-//        gpiAnchoredGenes.forEach(tid -> gpiAnchoredPhenotypes.put(geneId, diseasesToPhenotypes(1,
-//                genesToDiseasesMap.getOrDefault(tid, new HashSet<>()))));
+        Map<TermId, Set<TermId>> gpiAnchoredPhenotypes = targetPhenotypes(gpiAnchoredGenes);
 
-        for (TermId tid : gpiAnchoredGenes) {
-            Set<TermId> diseases = genesToDiseasesMap.getOrDefault(tid, new HashSet<>());
-//            if (diseases.size() > 0) System.out.println(geneId.getIdWithPrefix() + " " + diseases.size());
-            gpiAnchoredPhenotypes.put(tid, diseasesToPhenotypes(1, diseases));
-        }
+        logger.info(String.format("minDiseases = %d", minDiseases));
+        logger.info(String.format("threshold = %.2f", threshold));
 
+        sim1 = simfunAllPhenotypes(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values());
         logger.info(String.format(
                 "Similarity function allPhenotypes applied to GPI pathway genes, GPI anchored genes: %.2f",
-                simfunAllPhenotypes(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values())));
+                sim1));
 
+        sim2 = simfunBestMatch(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values());
         logger.info(String.format(
                 "Similarity function bestMatch applied to GPI pathway genes, GPI anchored genes: %.2f",
-                simfunBestMatch(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values())));
+                sim2));
 
         if (threshold > -1.0) {
+            sim3 = simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values(), threshold);
             logger.info(String.format(
-                    "Similarity function aboveThreshold (%.2f) applied to GPI pathway genes, GPI anchored genes: %.2f",
-                    threshold, simfunAboveThreshold(gpiPathwayPhenotypes, gpiAnchoredPhenotypes.values(), threshold)));
+                    "Similarity function aboveThreshold applied to GPI pathway genes, GPI anchored genes: %.2f",
+                    sim3));
         }
+
+        // initialize counters for the three similarity functions
+        int m1 = 0;
+        int m2 = 0;
+        int m3 = 0;
+        Set<TermId> sample;
+        Map<TermId, Set<TermId>> samplePhenotypes;
+        int sampleSize = gpiAnchoredGenes.size();
+        int upperIndex = allGenes.size();
+
+        for (int i = 0; i < NUM_ITER; i++) {
+            sample = randomSample(sampleSize, upperIndex);
+            samplePhenotypes = targetPhenotypes(sample);
+            if (simfunAllPhenotypes(gpiPathwayPhenotypes, samplePhenotypes.values()) >= sim1)
+                m1++;
+            if (simfunBestMatch(gpiPathwayPhenotypes, samplePhenotypes.values()) >= sim2)
+                m2++;
+            if (threshold > -1.0 &&
+                    simfunAboveThreshold(gpiPathwayPhenotypes, samplePhenotypes.values(), threshold) >= sim3)
+                m3++;
+        }
+
+        logger.info(String.format("Number of iterations: %d", NUM_ITER));
+        logger.info(String.format("p value for allPhenotypes similarity: %.4f", (double) m1/NUM_ITER));
+        logger.info(String.format("p value for bestMatch similarity: %.4f", (double) m2/NUM_ITER));
+        if (threshold > -1.0)
+            logger.info(String.format("p value for aboveThreshold similarity: %.4f", (double) m3/NUM_ITER));
+
         /* example of computing score between the sets of HPO terms that annotate two
         // diseases (get the diseases at random)
         logger.info("About to calculate phenotype similarity from two random diseases from a map of size " + diseaseMap.size());

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class Dsppc {
+    private static final String ALL_GENES_FILENAME = "human_protein_coding_genes.tsv";
     private static final String GENE_SETS_FILENAME = "ENTREZ_gene_sets.tsv";
     private static final String HPO_FILENAME = "hp.obo";
     private static final String HPOA_FILENAME = "phenotype.hpoa";
@@ -38,6 +39,27 @@ public class Dsppc {
      */
     private static String fixFinalSeparator(String path) {
         return path.endsWith(File.separator) ? path : path + File.separator;
+    }
+
+    /**
+     * Parses the ALL_GENES_FILENAME file to create a set of genes identified by ENTREZ id.
+     * @param inputPath       path to ALL_GENES_FILENAME file
+     * @return set of ENTREZ gene TermIds
+     * @throws IOException if cannot open/read input file
+     */
+    private static List<TermId> parseAllGenes(String inputPath) throws IOException {
+        List<TermId> allGenes = new ArrayList<>();
+        BufferedReader br = new BufferedReader(new FileReader(inputPath));
+        String[] fields;
+        String line;
+        TermPrefix prefix = new TermPrefix("ENTREZ");
+
+        while ((line = br.readLine()) != null) {
+            fields = line.split("\t");
+            allGenes.add(new TermId(prefix, fields[0]));
+        }
+        br.close();
+        return allGenes;
     }
 
     /**
@@ -188,6 +210,7 @@ public class Dsppc {
 
     public static void main(String[] args) {
         final CommandLine cmdl = parseCommandLineArgs(args);
+        final List<TermId> allGenes;
         final Map<TermId, HpoDisease> diseaseMap;
         final Map<TermId, Set<TermId>> geneToDiseasesMap;
         final Set<TermId> gpiAnchoredGenes = new TreeSet<>();
@@ -208,9 +231,12 @@ public class Dsppc {
                 logger.info("DONE: Parsing HPO disease annotations");
                 geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
                 logger.info("DONE: Parsing gene to disease annotations");
+                allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
+                logger.info("DONE: Parsing all human protein-coding genes");
                 parseGeneSets(dataDir + GENE_SETS_FILENAME, gpiPathwayGenes, gpiAnchoredGenes);
                 logger.info("DONE: Parsing gene sets");
-                new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap,
+
+                new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, allGenes,
                         gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases, threshold);
             } catch (IOException | PhenolException e) {
                 logger.fatal("Fatal error parsing inputs to dsppc. ", e);
