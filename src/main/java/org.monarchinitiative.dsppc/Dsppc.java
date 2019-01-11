@@ -43,7 +43,7 @@ public class Dsppc {
 
     /**
      * Parses the ALL_GENES_FILENAME file to create a set of genes identified by ENTREZ id.
-     * @param inputPath       path to ALL_GENES_FILENAME file
+     * @param inputPath    path to ALL_GENES_FILENAME file
      * @return set of ENTREZ gene TermIds
      * @throws IOException if cannot open/read input file
      */

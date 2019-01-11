@@ -132,9 +132,10 @@ class ComputeSimilarity {
         if (minDiseases < 2) {
             for (TermId tid : diseaseIds) {
                 HpoDisease disease = diseaseMap.get(tid);
-                if (disease == null) {
-                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid);
-                } else {
+//                if (disease == null) {
+//                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid);
+//                } else {
+                if (disease != null) {
                     phenotypes.addAll(disease.getPhenotypicAbnormalityTermIdList());
                 }
             }
@@ -142,9 +143,10 @@ class ComputeSimilarity {
             Map<TermId, Integer> counts = new HashMap<>();
             for (TermId tid0 : diseaseIds) {
                 HpoDisease disease = diseaseMap.get(tid0);
-                if (disease == null) {
-                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid0);
-                } else {
+//                if (disease == null) {
+//                    logger.warn("Disease listed in mim2gene_medgen but not in phenotype.hpoa: " + tid0);
+//                } else {
+                if (disease != null) {
                     for (TermId tid1 : disease.getPhenotypicAbnormalityTermIdList()) {
                         counts.putIfAbsent(tid1, 0);
                         counts.put(tid1, counts.get(tid1) + 1);
