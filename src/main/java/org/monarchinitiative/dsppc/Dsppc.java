@@ -24,11 +24,11 @@ import java.io.IOException;
 import java.util.*;
 
 public class Dsppc {
-    private static final String ALL_GENES_FILENAME = "human_protein_coding_genes.tsv";
-    private static final String GENE_SETS_FILENAME = "ENTREZ_gene_sets.tsv";
-    private static final String HPO_FILENAME = "hp.obo";
-    private static final String HPOA_FILENAME = "phenotype.hpoa";
-    private static final String MIM2GENE_MEDGEN_FILENAME = "mim2gene_medgen";
+    static final String ALL_GENES_FILENAME = "human_protein_coding_genes.tsv";
+    static final String GENE_SETS_FILENAME = "ENTREZ_gene_sets.tsv";
+    static final String HPO_FILENAME = "hp.obo";
+    static final String HPOA_FILENAME = "phenotype.hpoa";
+    static final String MIM2GENE_MEDGEN_FILENAME = "mim2gene_medgen";
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -47,7 +47,7 @@ public class Dsppc {
      * @return set of ENTREZ gene TermIds
      * @throws IOException if cannot open/read input file
      */
-    private static List<TermId> parseAllGenes(String inputPath) throws IOException {
+    static List<TermId> parseAllGenes(String inputPath) throws IOException {
         List<TermId> allGenes = new ArrayList<>();
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         String[] fields;
@@ -69,7 +69,7 @@ public class Dsppc {
      * similarity function (defaults to 1, no filtering)
      * -- threshold for IC content of phenotype to be included in thresholded similarity calculation
      */
-    private static CommandLine parseCommandLineArgs(String[] args) {
+    static CommandLine parseCommandLineArgs(String[] args) {
         // create the command line Options
         Option helpOpt = Option.builder("h")
                 .longOpt("help")
@@ -125,7 +125,7 @@ public class Dsppc {
         }
     }
 
-    private static void parseGeneSets(String inputPath, Set<TermId> pathwayGenes, Set<TermId> anchoredGenes)
+    static void parseGeneSets(String inputPath, Set<TermId> pathwayGenes, Set<TermId> anchoredGenes)
             throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         ArrayList<TermId> geneIds = new ArrayList<>();
@@ -156,7 +156,7 @@ public class Dsppc {
      * @return map from OMIM TermId to corresponding HpoDisease object
      * @throws PhenolException if error in parsing phenotype.hpoa file
      */
-    private static Map<TermId, HpoDisease> parseHPOA(String inputPath, HpoOntology hpo) throws PhenolException {
+    static Map<TermId, HpoDisease> parseHPOA(String inputPath, HpoOntology hpo) throws PhenolException {
         HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(inputPath, hpo);
         Map<TermId, HpoDisease> diseaseMap = parser.parse();
         Map<TermId, HpoDisease> omimMap = new HashMap<>();
@@ -174,7 +174,7 @@ public class Dsppc {
      * @return map from ENTREZ gene TermId to set of OMIM disease TermIds
      * @throws IOException if cannot open/read mim2gene_medgen file
      */
-    private static Map<TermId, Set<TermId>> parseMedgen(String inputPath) throws IOException {
+    static Map<TermId, Set<TermId>> parseMedgen(String inputPath) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         TermPrefix diseasePrefix = new TermPrefix("OMIM");
         Set<TermId> diseases;

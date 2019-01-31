@@ -30,7 +30,7 @@ class ComputeSimilarity {
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
     private final Random rand;
-    private final ResnikSimilarity resnikSimilarity;
+    final ResnikSimilarity resnikSimilarity;
 
     private static final Logger logger = LogManager.getLogger();
     private static final int NUM_ITER = 1000;
@@ -56,7 +56,7 @@ class ComputeSimilarity {
      * Compute information content of each phenotype term associated with one or more genes.
      * @return map from phenotype TermId to its information content.
      */
-    private Map<TermId, Double> computeICmap() {
+    Map<TermId, Double> computeICmap() {
         /*
         // Compute mapping from OMIM ID to phenotype TermIds and from phenotype to OMIM termId.
         logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse");
@@ -105,7 +105,7 @@ class ComputeSimilarity {
      * Resnik similarity precomputation
      * @return ResnikSimilarity object (asymmetric score)
      */
-    private ResnikSimilarity createResnik() {
+    ResnikSimilarity createResnik() {
         Map<TermId, Double> icMap = computeICmap();
         logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
@@ -173,7 +173,7 @@ class ComputeSimilarity {
     }
 
     /**
-     * Selects a random sample of the specified size from allGenes
+     * Selects a random sample (with replacement) of the specified size from allGenes
      * @param desiredSize  how big the random sample should be
      * @param upperLimit   largest index value for allGenes
      * @return Set of ENTREZ TermIds selected at random from allGenes
