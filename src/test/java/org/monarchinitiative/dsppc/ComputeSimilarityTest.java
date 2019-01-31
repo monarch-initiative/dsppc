@@ -4,10 +4,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
-import org.monarchinitiative.phenol.formats.hpo.HpoOntology;
-import org.monarchinitiative.phenol.io.obo.hpo.HpOboParser;
+
+import org.monarchinitiative.phenol.io.OntologyLoader;
+import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
-import org.monarchinitiative.phenol.ontology.data.TermPrefix;
 import org.monarchinitiative.phenol.ontology.similarity.PairwiseResnikSimilarity;
 
 import java.io.File;
@@ -30,27 +30,27 @@ public class ComputeSimilarityTest {
     private Map<TermId, Set<TermId>> geneToDiseasesMap;
     private Set<TermId> gpiAnchoredGenes = new TreeSet<>();
     private Set<TermId> gpiPathwayGenes = new TreeSet<>();
-    private HpoOntology hpo;
+    private Ontology hpo;
     private Map<TermId, Double> icMap;
     private int minDiseases;
-    private static TermPrefix prefix = new TermPrefix("HP");
+
     // abnormality of the liver
-    private static TermId al = new TermId(prefix, "0001392");
+    private static TermId al = TermId.of( "HP:0001392");
     // abnormality of the phalanges of the 5th toe
-    private static TermId ap5t = new TermId(prefix, "0010342");
+    private static TermId ap5t = TermId.of( "HP:0010342");
     // phenotypic abnormality
-    private static TermId pa = new TermId(prefix, "0000118");
+    private static TermId pa = TermId.of("HP:0000118");
     // polycystic liver disease
-    private static TermId pld = new TermId(prefix, "0006557");
+    private static TermId pld = TermId.of( "HP:0006557");
     // splenic cyst
-    private static TermId sc = new TermId(prefix, "0030423");
+    private static TermId sc = TermId.of( "HP:0030423");
 
     private double threshold;
 
     @Before
     public void setUp() throws Exception {
         allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
-        hpo = new HpOboParser(new File(dataDir + HPO_FILENAME)).parse();
+        hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
         diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
         geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
         parseGeneSets(dataDir + GENE_SETS_FILENAME, gpiPathwayGenes, gpiAnchoredGenes);

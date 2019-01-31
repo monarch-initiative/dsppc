@@ -11,11 +11,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.monarchinitiative.phenol.base.PhenolException;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
-import org.monarchinitiative.phenol.formats.hpo.HpoOntology;
-import org.monarchinitiative.phenol.io.obo.hpo.HpOboParser;
+import org.monarchinitiative.phenol.io.OntologyLoader;
 import org.monarchinitiative.phenol.io.obo.hpo.HpoDiseaseAnnotationParser;
+import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
-import org.monarchinitiative.phenol.ontology.data.TermPrefix;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -52,11 +51,11 @@ public class Dsppc {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         String[] fields;
         String line;
-        TermPrefix prefix = new TermPrefix("ENTREZ");
+        String entrezprefix = "ENTREZ";
 
         while ((line = br.readLine()) != null) {
             fields = line.split("\t");
-            allGenes.add(new TermId(prefix, fields[0]));
+            allGenes.add(TermId.of(entrezprefix, fields[0]));
         }
         br.close();
         return allGenes;
@@ -129,7 +128,7 @@ public class Dsppc {
             throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         ArrayList<TermId> geneIds = new ArrayList<>();
-        TermPrefix prefix = new TermPrefix("ENTREZ");
+        String entrezprefix = "ENTREZ";
 
         // skip over first line of file, which is a header line
         String line = br.readLine();
@@ -140,7 +139,7 @@ public class Dsppc {
                 geneIds.clear();
             } else {
                 for (String s : line.split("\t")) {
-                    geneIds.add(new TermId(prefix, s));
+                    geneIds.add( TermId.of(entrezprefix, s));
                 }
             }
         }
@@ -156,7 +155,7 @@ public class Dsppc {
      * @return map from OMIM TermId to corresponding HpoDisease object
      * @throws PhenolException if error in parsing phenotype.hpoa file
      */
-    static Map<TermId, HpoDisease> parseHPOA(String inputPath, HpoOntology hpo) throws PhenolException {
+    static Map<TermId, HpoDisease> parseHPOA(String inputPath, Ontology hpo) throws PhenolException {
         HpoDiseaseAnnotationParser parser = new HpoDiseaseAnnotationParser(inputPath, hpo);
         Map<TermId, HpoDisease> diseaseMap = parser.parse();
         Map<TermId, HpoDisease> omimMap = new HashMap<>();
@@ -176,13 +175,13 @@ public class Dsppc {
      */
     static Map<TermId, Set<TermId>> parseMedgen(String inputPath) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
-        TermPrefix diseasePrefix = new TermPrefix("OMIM");
+        String diseasePrefix = "OMIM";
         Set<TermId> diseases;
         String[] fields;
         TermId diseaseId;
         TermId geneId;
         final Map<TermId, Set<TermId>> geneIdToDiseaseIds = new HashMap<>();
-        TermPrefix genePrefix = new TermPrefix("ENTREZ");
+        String genePrefix = "ENTREZ";
 
         // skip over first line of file, which is a header line
         String line = br.readLine();
@@ -190,8 +189,8 @@ public class Dsppc {
             fields = line.split("\t");
             if (fields[2].equals("phenotype") &&
                     !(fields[1].equals("-") || fields[5].equals("nondisease"))) {
-                diseaseId = new TermId(diseasePrefix, fields[0]);
-                geneId = new TermId(genePrefix, fields[1]);
+                diseaseId =  TermId.of(diseasePrefix, fields[0]);
+                geneId = TermId.of(genePrefix, fields[1]);
                 diseases = geneIdToDiseaseIds.get(geneId);
                 if (diseases == null) {
                     // this is the first disease for this gene
@@ -215,7 +214,7 @@ public class Dsppc {
         final Map<TermId, Set<TermId>> geneToDiseasesMap;
         final Set<TermId> gpiAnchoredGenes = new TreeSet<>();
         final Set<TermId> gpiPathwayGenes = new TreeSet<>();
-        final HpoOntology hpo;
+        final Ontology hpo;
         final String dataDir;
         final int minDiseases;
         final double threshold;
@@ -224,8 +223,8 @@ public class Dsppc {
             dataDir = fixFinalSeparator(cmdl.getOptionValue("d", "src/main/resources/"));
             minDiseases = Integer.parseInt(cmdl.getOptionValue("m", "1"));
             threshold = Double.parseDouble(cmdl.getOptionValue("t", "0.5"));
+            hpo= OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
             try {
-                hpo = new HpOboParser(new File(dataDir + HPO_FILENAME)).parse();
                 logger.info("DONE: Loading HPO");
                 diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
                 logger.info("DONE: Parsing HPO disease annotations");

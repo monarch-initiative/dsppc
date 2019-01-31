@@ -4,8 +4,8 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
-import org.monarchinitiative.phenol.formats.hpo.HpoOntology;
 import org.monarchinitiative.phenol.ontology.algo.InformationContentComputation;
+import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 import org.monarchinitiative.phenol.ontology.data.TermIds;
 import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
@@ -25,7 +25,7 @@ class ComputeSimilarity {
 
     private final Map<TermId, HpoDisease> diseaseMap;
     private final List<TermId> allGenes;
-    private final HpoOntology hpo;
+    private final Ontology hpo;
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
@@ -36,7 +36,7 @@ class ComputeSimilarity {
     private static final int NUM_ITER = 1000;
     private static final int NUM_THREADS = 4;
 
-    ComputeSimilarity(HpoOntology hpo, Map<TermId, HpoDisease> diseaseMap,
+    ComputeSimilarity(Ontology hpo, Map<TermId, HpoDisease> diseaseMap,
                       Map<TermId, Set<TermId>> geneToDiseasesMap, List<TermId> allGenes,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
         this.hpo = hpo;
@@ -257,6 +257,16 @@ class ComputeSimilarity {
         return phenotypesByGene;
     }
 
+
+    int countTotalHpoTerms(Map<TermId, Set<TermId>> mysetofgenes) {
+        Set<TermId> allterms=new HashSet<>();
+        for (Set<TermId> hposet : mysetofgenes.values()) {
+            allterms.addAll(hposet);
+        }
+        return allterms.size();
+    }
+
+
     /**
      * Run randomization.
      * @param minDiseases gpi pathway phenotype must appear in at least this number of diseases to be considered
@@ -295,6 +305,8 @@ class ComputeSimilarity {
                     sim3));
         }
 
+        int NtermsRealSet=countTotalHpoTerms(gpiAnchoredPhenotypes);
+
         // initialize counters for the three similarity functions
         int m1 = 0;
         int m2 = 0;
@@ -307,13 +319,18 @@ class ComputeSimilarity {
         for (int i = 0; i < NUM_ITER; i++) {
             sample = randomSample(sampleSize, upperIndex);
             samplePhenotypes = targetPhenotypes(sample);
-            if (simfunAllPhenotypes(gpiPathwayPhenotypes, samplePhenotypes.values()) >= sim1)
+            double simAllPhen=simfunAllPhenotypes(gpiPathwayPhenotypes, samplePhenotypes.values());
+            if (simAllPhen>= sim1)
                 m1++;
             if (simfunBestMatch(gpiPathwayPhenotypes, samplePhenotypes.values()) >= sim2)
                 m2++;
             if (threshold > -1.0 &&
                     simfunAboveThreshold(gpiPathwayPhenotypes, samplePhenotypes.values(), threshold) >= sim3)
                 m3++;
+            System.err.println("All Phen: "+simAllPhen);
+            int M = countTotalHpoTerms(samplePhenotypes);
+            System.err.println("Number of HPO terms for sample "+M +" (Real="+NtermsRealSet);
+            System.err.println("Number of HPO terms for sample "+M +" (Real="+NtermsRealSet);
         }
 
         logger.info(String.format("Number of iterations: %d", NUM_ITER));
