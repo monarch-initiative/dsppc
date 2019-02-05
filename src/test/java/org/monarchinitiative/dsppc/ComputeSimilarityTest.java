@@ -46,7 +46,7 @@ public class ComputeSimilarityTest {
     private static TermId sc = TermId.of( "HP:0030423");
 
     private double threshold;
-
+/*
     @Before
     public void setUp() throws Exception {
         allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
@@ -90,4 +90,5 @@ public class ComputeSimilarityTest {
         assertTrue("al is more similar to sc than pld is to sc", score0 >= score1);
         assertEquals("similarity(pld, sc) is not equal to similarity(al, sc)", score0, score1, 0.00001);
     }
+*/
 }
