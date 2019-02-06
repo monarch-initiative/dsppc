@@ -24,7 +24,7 @@ import static org.monarchinitiative.dsppc.SimFuns.*;
 class ComputeSimilarity {
 
     private final Map<TermId, HpoDisease> diseaseMap;
-    private final List<TermId> allGenes;
+    private final List<TermId> allDiseaseGenes;
     private final Ontology hpo;
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
@@ -41,13 +41,21 @@ class ComputeSimilarity {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
-        this.allGenes = allGenes;
+        allDiseaseGenes = allGenes;
         gpiPathwayGenes = gpiPathway;
         gpiAnchoredGenes = gpiAnchored;
         // delete the GPI pathway genes from the set over which we will randomly choose genes
         // to compare to the GPI pathway genes
-        this.allGenes.removeAll(gpiPathwayGenes);
+        allDiseaseGenes.removeAll(gpiPathwayGenes);
+        // for randomization, consider only disease genes and eliminate genes which are not associated with
+        // any disease
         resnikSimilarity = createResnik();
+        System.err.println("All genes: " + allDiseaseGenes.size() + " ; all GPI anchored genes: " +
+                gpiAnchoredGenes.size());
+        allDiseaseGenes.retainAll(genesToDiseasesMap.keySet());
+        gpiAnchoredGenes.retainAll(genesToDiseasesMap.keySet());
+        System.err.println("All disease genes: " + allDiseaseGenes.size() +
+                " ; all GPI anchored disease genes: " + gpiAnchoredGenes.size());
     }
 
     /**
@@ -235,7 +243,7 @@ class ComputeSimilarity {
         int sampleSize = gpiAnchoredGenes.size();
 
         for (int i = 0; i < NUM_ITER; i++) {
-            sample = randomSample(rand, sampleSize, allGenes);
+            sample = randomSample(rand, sampleSize, allDiseaseGenes);
             samplePhenotypes = targetPhenotypes(sample);
             double simAllPhen=simfunAllPhenotypes(gpiPathwayPhenotypes, samplePhenotypes.values(),
                     resnikSimilarity);
