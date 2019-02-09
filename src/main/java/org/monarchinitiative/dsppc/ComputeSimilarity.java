@@ -11,6 +11,7 @@ import org.monarchinitiative.phenol.ontology.data.TermIds;
 import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
 import org.monarchinitiative.phenol.ontology.similarity.ResnikSimilarity;
 
+import static org.monarchinitiative.dsppc.Counter.*;
 import static org.monarchinitiative.dsppc.SimFuns.*;
 
 // adapted from ComputeSimilarity.java in phenol library
@@ -23,16 +24,17 @@ import static org.monarchinitiative.dsppc.SimFuns.*;
  */
 class ComputeSimilarity {
 
-    private final Map<TermId, HpoDisease> diseaseMap;
     private final List<TermId> allDiseaseGenes;
-    private final Ontology hpo;
+    private final List<TermId> allGenes;
+    private final Map<TermId, HpoDisease> diseaseMap;
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
-    final ResnikSimilarity resnikSimilarity;
+    private final Ontology hpo;
+    private final ResnikSimilarity resnikSimilarity;
 
     private static final Logger logger = LogManager.getLogger();
-    private static final int NUM_ITER = 1000;
+    static final int NUM_ITER = 1000;
     private static final int NUM_THREADS = 4;
 
     ComputeSimilarity(Ontology hpo, Map<TermId, HpoDisease> diseaseMap,
@@ -41,28 +43,45 @@ class ComputeSimilarity {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
-        allDiseaseGenes = allGenes;
+        this.allGenes = allGenes;
         gpiPathwayGenes = gpiPathway;
         gpiAnchoredGenes = gpiAnchored;
         // delete the GPI pathway genes from the set over which we will randomly choose genes
         // to compare to the GPI pathway genes
-        allDiseaseGenes.removeAll(gpiPathwayGenes);
+        this.allGenes.removeAll(gpiPathwayGenes);
+        compareCounts();
         // for randomization, consider only disease genes and eliminate genes which are not associated with
         // any disease
-        resnikSimilarity = createResnik();
-        System.err.println("All genes: " + allDiseaseGenes.size() + " ; all GPI anchored genes: " +
+        allDiseaseGenes = new ArrayList<>(this.allGenes);
+        System.err.println("All genes: " + allGenes.size() + " ; all GPI anchored genes: " +
                 gpiAnchoredGenes.size());
         allDiseaseGenes.retainAll(genesToDiseasesMap.keySet());
         gpiAnchoredGenes.retainAll(genesToDiseasesMap.keySet());
         System.err.println("All disease genes: " + allDiseaseGenes.size() +
                 " ; all GPI anchored disease genes: " + gpiAnchoredGenes.size());
+        resnikSimilarity = createResnik();
+    }
+
+    /**
+     * Outputs the number of disease genes, number of diseases, and number of phenotypes for the set of
+     * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
+     */
+    private void compareCounts() {
+        Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap, gpiAnchoredGenes.size());
+        int[] anchoredCounts = counter.countOneSet(gpiAnchoredGenes);
+        System.err.println("               # Disease Genes    # Diseases    # Phenotypes");
+        System.err.println(String.format("GPI Anchored Genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+                (float) anchoredCounts[NUM_DISEASE_GENES], (float) anchoredCounts[NUM_DISEASES],
+                (float) anchoredCounts[NUM_PHENOTYPES]));
+        System.err.println(String.format("Average of Random\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+                counter.getAvgDiseaseGenes(), counter.getAvgDiseases(), counter.getAvgPhenotypes()));
     }
 
     /**
      * Compute information content of each phenotype term associated with one or more genes.
      * @return map from phenotype TermId to its information content.
      */
-    Map<TermId, Double> computeICmap() {
+    private Map<TermId, Double> computeICmap() {
         /*
         // Compute mapping from OMIM ID to phenotype TermIds and from phenotype to OMIM termId.
         logger.info("Mapping from OMIM ID to HPO phenotype terms and the reverse");
@@ -111,7 +130,7 @@ class ComputeSimilarity {
      * Resnik similarity precomputation
      * @return ResnikSimilarity object (asymmetric score)
      */
-    ResnikSimilarity createResnik() {
+    private ResnikSimilarity createResnik() {
         Map<TermId, Double> icMap = computeICmap();
         logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
