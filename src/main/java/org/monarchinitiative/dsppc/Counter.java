@@ -41,7 +41,7 @@ class Counter {
     static final int NUM_PHENOTYPES = 2;
 
     Counter(List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
-                   Map<TermId, Set<TermId>> genesToDiseasesMap, int cardinality) {
+            Map<TermId, Set<TermId>> genesToDiseasesMap, int cardinality) {
         this.allGenes = allGenes;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
@@ -53,8 +53,8 @@ class Counter {
      * each set chosen at random from the set of all genes
      * average for three counts:
      *     number of disease genes in the set
-     *     number of diseases related to those disease genes
-     *     number of phenotypes related to those diseases
+     *     number of distinct diseases related to those disease genes
+     *     number of distinct phenotypes related to those diseases
      * @param cardinality  how many genes per set
      */
     private void countAverages(int cardinality) {
@@ -94,11 +94,17 @@ class Counter {
                 .flatMap(g -> genesToDiseasesMap.get(g).stream())
                 .collect(Collectors.toSet());
         counts[NUM_DISEASES] = diseases.size();
-        counts[NUM_PHENOTYPES] = (int) diseases.stream()
+        Set<TermId> phenotypes = diseases.stream()
                 .map(diseaseMap::get)
                 .filter(Objects::nonNull)
-                .mapToLong(d -> d.getPhenotypicAbnormalityTermIdList().size())
-                .sum();
+                .flatMap(d -> d.getPhenotypicAbnormalityTermIdList().stream())
+                .collect(Collectors.toSet());
+//        Set<TermId> phenotypes = new HashSet();
+//        diseases.stream()
+//                .map(diseaseMap::get)
+//                .filter(Objects::nonNull)
+//                .forEach(d -> phenotypes.addAll(d.getPhenotypicAbnormalityTermIdList()));
+        counts[NUM_PHENOTYPES] = phenotypes.size();
         return counts;
     }
 
