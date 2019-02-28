@@ -44,8 +44,8 @@ class ComputeSimilarity {
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
         this.allGenes = allGenes;
-        gpiPathwayGenes = gpiPathway;
-        gpiAnchoredGenes = gpiAnchored;
+        gpiAnchoredGenes = new HashSet<>(gpiAnchored);
+        gpiPathwayGenes = new HashSet<>(gpiPathway);
         // delete the GPI pathway genes from the set over which we will randomly choose genes
         // to compare to the GPI pathway genes
         this.allGenes.removeAll(gpiPathwayGenes);
@@ -53,11 +53,13 @@ class ComputeSimilarity {
         // for randomization, consider only disease genes and eliminate genes which are not associated with
         // any disease
         allDiseaseGenes = new ArrayList<>(this.allGenes);
-        System.err.println("All genes: " + allGenes.size() + " ; all GPI anchored genes: " +
-                gpiAnchoredGenes.size());
+        System.err.println("All genes: " + allGenes.size() + " ; all GPI pathway genes: " +
+                gpiPathwayGenes.size() + " ; all GPI anchored genes: " + gpiAnchoredGenes.size());
         allDiseaseGenes.retainAll(genesToDiseasesMap.keySet());
         gpiAnchoredGenes.retainAll(genesToDiseasesMap.keySet());
+        gpiPathwayGenes.retainAll(genesToDiseasesMap.keySet());
         System.err.println("All disease genes: " + allDiseaseGenes.size() +
+                " ; all GPI pathway disease genes: " + gpiPathwayGenes.size() +
                 " ; all GPI anchored disease genes: " + gpiAnchoredGenes.size());
         resnikSimilarity = createResnik();
     }
@@ -69,11 +71,15 @@ class ComputeSimilarity {
     private void compareCounts() {
         Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap, gpiAnchoredGenes.size());
         int[] anchoredCounts = counter.countOneSet(gpiAnchoredGenes);
-        System.err.println("               # Disease Genes    # Diseases    # Phenotypes");
-        System.err.println(String.format("GPI Anchored Genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+        int[] pathwayCounts = counter.countOneSet(gpiPathwayGenes);
+        System.err.println("                   # Disease Genes    # Diseases    # Phenotypes");
+        System.err.println(String.format("GPI pathway genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+                (float) pathwayCounts[NUM_DISEASE_GENES], (float) pathwayCounts[NUM_DISEASES],
+                (float) pathwayCounts[NUM_PHENOTYPES]));
+        System.err.println(String.format("GPI anchored genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 (float) anchoredCounts[NUM_DISEASE_GENES], (float) anchoredCounts[NUM_DISEASES],
                 (float) anchoredCounts[NUM_PHENOTYPES]));
-        System.err.println(String.format("Average of Random\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+        System.err.println(String.format("Average of random\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 counter.getAvgDiseaseGenes(), counter.getAvgDiseases(), counter.getAvgPhenotypes()));
     }
 
@@ -260,6 +266,10 @@ class ComputeSimilarity {
         Set<TermId> sample;
         Map<TermId, Set<TermId>> samplePhenotypes;
         int sampleSize = gpiAnchoredGenes.size();
+
+        // debugging
+        System.err.println("Size of GPI pathway genes: " + gpiPathwayGenes.size());
+        System.err.println("Sample size for random sets of genes: " + sampleSize);
 
         for (int i = 0; i < NUM_ITER; i++) {
             sample = randomSample(rand, sampleSize, allDiseaseGenes);
