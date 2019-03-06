@@ -267,9 +267,10 @@ class ComputeSimilarity {
         Map<TermId, Set<TermId>> samplePhenotypes;
         int sampleSize = gpiAnchoredGenes.size();
 
-        // debugging
+        /* debugging
         System.err.println("Size of GPI pathway genes: " + gpiPathwayGenes.size());
         System.err.println("Sample size for random sets of genes: " + sampleSize);
+        */
 
         for (int i = 0; i < NUM_ITER; i++) {
             sample = randomSample(rand, sampleSize, allDiseaseGenes);

@@ -1,15 +1,18 @@
 package org.monarchinitiative.dsppc;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 
 import org.monarchinitiative.phenol.io.OntologyLoader;
 import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
+//import org.monarchinitiative.phenol.ontology.similarity.AbstractCommonAncestorSimilarity;
 import org.monarchinitiative.phenol.ontology.similarity.PairwiseResnikSimilarity;
+import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
+import org.monarchinitiative.phenol.ontology.similarity.ResnikSimilarity;
 
+import java.lang.reflect.*;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +26,9 @@ import static org.monarchinitiative.dsppc.Dsppc.*;
  * created 14 Jan 2019
  */
 public class ComputeSimilarityTest {
-    private ComputeSimilarity comSim;
-    private String dataDir = "src/main/resources/";
-    private List<TermId> allGenes;
-    private Map<TermId, HpoDisease> diseaseMap;
-    private Map<TermId, Set<TermId>> geneToDiseasesMap;
-    private Set<TermId> gpiAnchoredGenes = new TreeSet<>();
-    private Set<TermId> gpiPathwayGenes = new TreeSet<>();
-    private Ontology hpo;
     private Map<TermId, Double> icMap;
-    private int minDiseases;
+//    private int minDiseases;
+    private PairwiseResnikSimilarity pwResSim;
 
     // abnormality of the liver
     private static TermId al = TermId.of( "HP:0001392");
@@ -46,22 +42,34 @@ public class ComputeSimilarityTest {
     private static TermId sc = TermId.of( "HP:0030423");
 
     private double threshold;
-/*
-    @Before
+
+    @BeforeClass
     public void setUp() throws Exception {
-        allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
-        hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
-        diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
-        geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
+        String dataDir = "src/main/resources/";
+        Set<TermId> gpiAnchoredGenes = new TreeSet<>();
+        Set<TermId> gpiPathwayGenes = new TreeSet<>();
+
+        List<TermId> allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
+        Ontology hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
+        Map<TermId, HpoDisease> diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
+        Map<TermId, Set<TermId>> geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
         parseGeneSets(dataDir + GENE_SETS_FILENAME, gpiPathwayGenes, gpiAnchoredGenes);
 
-        comSim = new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, allGenes,
+        ComputeSimilarity comSim = new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, allGenes,
                 gpiPathwayGenes, gpiAnchoredGenes);
-        icMap = comSim.computeICmap();
-    }
-
-    @After
-    public void tearDown() throws Exception {
+        Class csc = comSim.getClass();
+        Field rsf = csc.getDeclaredField("resnikSimilarity");
+        rsf.setAccessible(true);
+        ResnikSimilarity resSim = (ResnikSimilarity) rsf.get(comSim);
+        Class<? extends ResnikSimilarity> rsc = resSim.getClass();
+//        Class<? extends ResnikSimilarity> rsc = resSim.getClass();
+//        Class cl = Class.forName("AbstractCommonAncestorSimilarity");
+        Class scl = rsc.getSuperclass();
+        Field pwsf = scl.getDeclaredField("pairwiseSimilarity");
+//        Field pwsf = rsc.getDeclaredField("pairwiseSimilarity");
+        pwsf.setAccessible(true);
+//        pwResSim = (PrecomputingPairwiseResnikSimilarity) pwsf.get(resSim);
+//        icMap = pwResSim.getTermToIc();
     }
 
     @Test
@@ -77,7 +85,6 @@ public class ComputeSimilarityTest {
 
     @Test
     public void testRS() {
-        PairwiseResnikSimilarity pwResSim = new PairwiseResnikSimilarity(hpo, icMap);
         double score0, score1;
 
         // two liver phenotypes should be more similar than a liver phenotype and a bone abnormality
@@ -90,5 +97,4 @@ public class ComputeSimilarityTest {
         assertTrue("al is more similar to sc than pld is to sc", score0 >= score1);
         assertEquals("similarity(pld, sc) is not equal to similarity(al, sc)", score0, score1, 0.00001);
     }
-*/
 }

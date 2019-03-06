@@ -68,7 +68,7 @@ public class Dsppc {
      * similarity function (defaults to 1, no filtering)
      * -- threshold for IC content of phenotype to be included in thresholded similarity calculation
      */
-    static CommandLine parseCommandLineArgs(String[] args) {
+    private static CommandLine parseCommandLineArgs(String[] args) {
         // create the command line Options
         Option helpOpt = Option.builder("h")
                 .longOpt("help")

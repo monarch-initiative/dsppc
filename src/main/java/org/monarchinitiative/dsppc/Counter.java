@@ -99,11 +99,6 @@ class Counter {
                 .filter(Objects::nonNull)
                 .flatMap(d -> d.getPhenotypicAbnormalityTermIdList().stream())
                 .collect(Collectors.toSet());
-//        Set<TermId> phenotypes = new HashSet();
-//        diseases.stream()
-//                .map(diseaseMap::get)
-//                .filter(Objects::nonNull)
-//                .forEach(d -> phenotypes.addAll(d.getPhenotypicAbnormalityTermIdList()));
         counts[NUM_PHENOTYPES] = phenotypes.size();
         return counts;
     }
