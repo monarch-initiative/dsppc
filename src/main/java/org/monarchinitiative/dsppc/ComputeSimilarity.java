@@ -31,7 +31,7 @@ class ComputeSimilarity {
     private final Set<TermId> gpiAnchoredGenes;
     private final Set<TermId> gpiPathwayGenes;
     private final Ontology hpo;
-    private final ResnikSimilarity resnikSimilarity;
+    private final Map<TermId, Double> icMap;
 
     private static final Logger logger = LogManager.getLogger();
     static final int NUM_ITER = 1000;
@@ -61,7 +61,7 @@ class ComputeSimilarity {
         System.err.println("All disease genes: " + allDiseaseGenes.size() +
                 " ; all GPI pathway disease genes: " + gpiPathwayGenes.size() +
                 " ; all GPI anchored disease genes: " + gpiAnchoredGenes.size());
-        resnikSimilarity = createResnik();
+        icMap = computeICmap();
     }
 
     /**
@@ -137,7 +137,6 @@ class ComputeSimilarity {
      * @return ResnikSimilarity object (asymmetric score)
      */
     private ResnikSimilarity createResnik() {
-        Map<TermId, Double> icMap = computeICmap();
         logger.info("Performing Resnik precomputation...");
         final PrecomputingPairwiseResnikSimilarity pairwiseResnikSimilarity =
                 new PrecomputingPairwiseResnikSimilarity(hpo, icMap, NUM_THREADS);
@@ -225,6 +224,8 @@ class ComputeSimilarity {
      * threshold = -1 means skip simfunAboveThreshold
      */
     void run( int minDiseases, double threshold ) {
+        ResnikSimilarity resnikSimilarity = createResnik();
+
         // create a set of diseases, a set of the associated phenotypes for genes in the GPI pathway
         // if minDiseases > 1, filter out the phenotypes that occur in fewer diseases
         Set<TermId> gpiPathwayDiseases = genesToDiseases(gpiPathwayGenes);

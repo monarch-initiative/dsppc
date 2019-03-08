@@ -26,9 +26,9 @@ import static org.monarchinitiative.dsppc.Dsppc.*;
  * created 14 Jan 2019
  */
 public class ComputeSimilarityTest {
-    private Map<TermId, Double> icMap;
+    private static Map<TermId, Double> icMap;
 //    private int minDiseases;
-    private PairwiseResnikSimilarity pwResSim;
+    private static PairwiseResnikSimilarity pwResSim;
 
     // abnormality of the liver
     private static TermId al = TermId.of( "HP:0001392");
@@ -44,7 +44,7 @@ public class ComputeSimilarityTest {
     private double threshold;
 
     @BeforeClass
-    public void setUp() throws Exception {
+    public static void setUp() throws Exception {
         String dataDir = "src/main/resources/";
         Set<TermId> gpiAnchoredGenes = new TreeSet<>();
         Set<TermId> gpiPathwayGenes = new TreeSet<>();
@@ -58,18 +58,10 @@ public class ComputeSimilarityTest {
         ComputeSimilarity comSim = new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, allGenes,
                 gpiPathwayGenes, gpiAnchoredGenes);
         Class csc = comSim.getClass();
-        Field rsf = csc.getDeclaredField("resnikSimilarity");
-        rsf.setAccessible(true);
-        ResnikSimilarity resSim = (ResnikSimilarity) rsf.get(comSim);
-        Class<? extends ResnikSimilarity> rsc = resSim.getClass();
-//        Class<? extends ResnikSimilarity> rsc = resSim.getClass();
-//        Class cl = Class.forName("AbstractCommonAncestorSimilarity");
-        Class scl = rsc.getSuperclass();
-        Field pwsf = scl.getDeclaredField("pairwiseSimilarity");
-//        Field pwsf = rsc.getDeclaredField("pairwiseSimilarity");
-        pwsf.setAccessible(true);
-//        pwResSim = (PrecomputingPairwiseResnikSimilarity) pwsf.get(resSim);
-//        icMap = pwResSim.getTermToIc();
+        Field icm = csc.getDeclaredField("icMap");
+        icm.setAccessible(true);
+        icMap = ( Map<TermId, Double> ) icm.get(comSim);
+        pwResSim = new PairwiseResnikSimilarity(hpo, icMap);
     }
 
     @Test
@@ -80,21 +72,31 @@ public class ComputeSimilarityTest {
                 icMap.get(al), "abnormality of the liver ", icMap.get(pld), "polycystic liver disease",
                 icMap.get(sc), "splenic cyst", icMap.get(ap5t), "abnormality of the phalanges of the 5th toe"));
         // more general concept should have lower information content
-        assertTrue(icMap.get(al) < icMap.get(pld));
+        assertTrue("IC of al is >= IC of pld", icMap.get(al) < icMap.get(pld));
     }
 
     @Test
     public void testRS() {
-        double score0, score1;
+        double score_al_pld, score_ap5t_pld, score_pld_sc, score_al_sc;
 
+        score_al_pld = pwResSim.computeScore(al, pld);
+        score_ap5t_pld = pwResSim.computeScore(ap5t, pld);
+        score_pld_sc = pwResSim.computeScore(pld, sc);
+        score_al_sc = pwResSim.computeScore(al, sc);
         // two liver phenotypes should be more similar than a liver phenotype and a bone abnormality
         assertTrue("ap5t is more similar to pld than al is to pld",
-                pwResSim.computeScore(al, pld) > pwResSim.computeScore(ap5t, pld));
+                 score_al_pld > score_ap5t_pld);
         // two abdominal diseases involving cysts should be more similar than generic abnormality of liver is
         // to splenic cyst, but it appears to be equal
-        score0 = pwResSim.computeScore(pld, sc);
-        score1 = pwResSim.computeScore(al, sc);
-        assertTrue("al is more similar to sc than pld is to sc", score0 >= score1);
-        assertEquals("similarity(pld, sc) is not equal to similarity(al, sc)", score0, score1, 0.00001);
+        assertTrue("al is more similar to sc than pld is to sc", score_pld_sc >= score_al_sc);
+        assertEquals("similarity(pld, sc) is not equal to similarity(al, sc)", score_pld_sc, score_al_sc,
+                0.00001);
+
+        System.out.println(String.format(
+                "Pairwise similarity%n%6.4f %s%n%6.4f %s%n%6.4f %s%n%6.4f %s%n",
+                score_al_pld, "sim(abnormality of the liver, polycystic liver disease)",
+                score_al_sc, "sim(abnormality of the liver, splenic cyst)",
+                score_pld_sc, "sim(polycystic liver disease, splenic cyst)",
+                score_ap5t_pld, "sim(abnormality of the phalanges of the 5th toe, polycystic liver disease)"));
     }
 }
