@@ -19,6 +19,7 @@ Optionally apply a filter to demand that a phenotype is seen in at least _k_ of 
 * For the target set -> Do not merge the HPOs into one big set. Instead, if a certain target gene is associated with multiple OMIM diseases, merge all of those HPOs into a set. Keep one such set for each target gene associated with one or more disease(s). Ignore target genes associated with no disease.
 
 #### Calculate similarity between the GPI set and the target set
-Try two similarity functions:
+Try three similarity functions:
 1. for each gene/disease associated with the target set, choose the best matching HPO term (highest IC score), and form the sum
 2. for each gene/disease associated with the target set, take the sum of all matching HPO terms whose IC score exceeds a threshold _t_.
+3. for each gene/disease associated with the target set, compare the set of all phenotypes to the set of phenotypes in the GPI diseases.
