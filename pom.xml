@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jdk.version>1.8</jdk.version>
-        <phenol.version>1.3.0-SNAPSHOT</phenol.version>
+        <phenol.version>1.3.2</phenol.version>
     </properties>
 
     <dependencies>
@@ -78,7 +78,6 @@
             <version>3.6.1</version>
         </dependency>
 
-
         <dependency>
             <groupId>org.monarchinitiative.phenol</groupId>
             <artifactId>phenol-core</artifactId>
@@ -124,9 +123,23 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        <!-- <dependency>
+            <groupId>org.monarchinitiative.phenol</groupId>
+            <artifactId>phenol</artifactId>
+            <version>1.3.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId> org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+            <type>pom</type>
+        </dependency> -->
     </dependencies>
-
 
     <!-- keeps the logging artifacts in sync with each other -->
     <dependencyManagement>
@@ -237,7 +250,6 @@
                 </executions>
             </plugin>
             <plugin>
-
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.20</version>

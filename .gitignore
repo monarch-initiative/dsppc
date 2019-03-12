@@ -16,6 +16,7 @@
 hs_err_pid*
 
 src/main/resources/hp.obo
+/src/main/resources/human_protein_coding_genes.tsv
 /src/main/resources/mim2gene_medgen
 /src/main/resources/phenotype.hpoa
 target/
