@@ -69,9 +69,10 @@ class ComputeSimilarity {
      * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
      */
     private void compareCounts() {
-        Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap, gpiAnchoredGenes.size());
-        int[] anchoredCounts = counter.countOneSet(gpiAnchoredGenes);
-        int[] pathwayCounts = counter.countOneSet(gpiPathwayGenes);
+        Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap);
+        int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes);
+        int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes);
+        counter.countAverages(gpiAnchoredGenes.size());
         System.err.println("                   # Disease Genes    # Diseases    # Phenotypes");
         System.err.println(String.format("GPI pathway genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 (float) pathwayCounts[NUM_DISEASE_GENES], (float) pathwayCounts[NUM_DISEASES],

@@ -28,6 +28,7 @@ public class Dsppc {
     static final String HPO_FILENAME = "hp.obo";
     static final String HPOA_FILENAME = "phenotype.hpoa";
     static final String MIM2GENE_MEDGEN_FILENAME = "mim2gene_medgen";
+    static final String REPORT_FILENAME = "counterOutput.txt";
 
     private static final Logger logger = LogManager.getLogger();
 

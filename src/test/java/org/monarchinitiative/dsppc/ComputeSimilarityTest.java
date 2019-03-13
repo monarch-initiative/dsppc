@@ -77,12 +77,14 @@ public class ComputeSimilarityTest {
 
     @Test
     public void testRS() {
-        double score_al_pld, score_ap5t_pld, score_pld_sc, score_al_sc;
+        double score_al_pld, score_ap5t_pld, score_pld_sc, score_al_sc, score_ap5t_ap5t, score_al_al;
 
         score_al_pld = pwResSim.computeScore(al, pld);
         score_ap5t_pld = pwResSim.computeScore(ap5t, pld);
         score_pld_sc = pwResSim.computeScore(pld, sc);
         score_al_sc = pwResSim.computeScore(al, sc);
+        score_ap5t_ap5t = pwResSim.computeScore(ap5t, ap5t);
+        score_al_al = pwResSim.computeScore(al, al);
         // two liver phenotypes should be more similar than a liver phenotype and a bone abnormality
         assertTrue("ap5t is more similar to pld than al is to pld",
                  score_al_pld > score_ap5t_pld);
@@ -93,10 +95,13 @@ public class ComputeSimilarityTest {
                 0.00001);
 
         System.out.println(String.format(
-                "Pairwise similarity%n%6.4f %s%n%6.4f %s%n%6.4f %s%n%6.4f %s%n",
+                "Pairwise similarity%n%6.4f %s%n%6.4f %s%n%6.4f %s%n%6.4f %s%n%6.4f %s%n%6.4f %s%n",
                 score_al_pld, "sim(abnormality of the liver, polycystic liver disease)",
                 score_al_sc, "sim(abnormality of the liver, splenic cyst)",
                 score_pld_sc, "sim(polycystic liver disease, splenic cyst)",
-                score_ap5t_pld, "sim(abnormality of the phalanges of the 5th toe, polycystic liver disease)"));
+                score_ap5t_pld, "sim(abnormality of the phalanges of the 5th toe, polycystic liver disease)",
+                score_ap5t_ap5t, "sim(abnormality of the phalanges of the 5th toe, " +
+                        "abnormality of the phalanges of the 5th toe)",
+                score_al_al, "sim(abnormality of the liver, abnormality of the liver)"));
     }
 }

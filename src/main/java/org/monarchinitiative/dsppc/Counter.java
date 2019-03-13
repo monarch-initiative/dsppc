@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 
+import static org.monarchinitiative.dsppc.Dsppc.REPORT_FILENAME;
 import static org.monarchinitiative.dsppc.ComputeSimilarity.NUM_ITER;
 import static org.monarchinitiative.dsppc.SimFuns.randomSample;
 
@@ -24,11 +25,11 @@ class Counter {
     // all human protein-coding genes (excluding GPI pathway genes)
     private final List<TermId> allGenes;
     // average number of diseases associated with genes in random sample
-    private double avgDiseases;
+    private double avgDiseases = -1.0;
     // average number of disease genes per random sample
-    private double avgDiseaseGenes;
+    private double avgDiseaseGenes = -1.0;
     // average number of phenotypes associated with diseases annotated to genes in random sample
-    private double avgPhenotypes;
+    private double avgPhenotypes = -1.0;
     // map from disease ID to HPO disease object
     private final Map<TermId, HpoDisease> diseaseMap;
     // map from gene ID to set of disease IDs
@@ -41,11 +42,10 @@ class Counter {
     static final int NUM_PHENOTYPES = 2;
 
     Counter(List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
-            Map<TermId, Set<TermId>> genesToDiseasesMap, int cardinality) {
+            Map<TermId, Set<TermId>> genesToDiseasesMap) {
         this.allGenes = allGenes;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
-        countAverages(cardinality);
     }
 
     /**
@@ -57,9 +57,9 @@ class Counter {
      *     number of distinct phenotypes related to those diseases
      * @param cardinality  how many genes per set
      */
-    private void countAverages(int cardinality) {
+    void countAverages(int cardinality) {
         int[] counts;
-        Set<TermId> randomGenes;
+        Set<TermId> randomGenes = null;
         Random rand = new Random();
         int sumDiseases = 0;
         int sumDiseaseGenes = 0;
@@ -71,6 +71,7 @@ class Counter {
             sumDiseases += counts[NUM_DISEASES];
             sumPhenotypes += counts[NUM_PHENOTYPES];
         }
+        countAndReport(randomGenes);
         double denom = (double) NUM_ITER;
         avgDiseaseGenes = sumDiseaseGenes / denom;
         avgDiseases = sumDiseases / denom;
@@ -103,6 +104,30 @@ class Counter {
         return counts;
     }
 
+    /**
+     * Same functionality as countOneSet except that this method outputs a report of the
+     * disease genes, diseases, and phenotypes for the input set of genes. The name of
+     * the report file is specified in Dsppc.java
+     * @param genes  Set of gene TermIds
+     * @return array of int containing the three counts
+     */
+    int[] countAndReport(Set<TermId> genes) {
+        int[] counts = new int[3];
+        Set<TermId> diseaseGenes = new HashSet<>(genes);
+        diseaseGenes.retainAll(genesToDiseasesMap.keySet());
+        counts[NUM_DISEASE_GENES] = diseaseGenes.size();
+        Set<TermId> diseases = diseaseGenes.stream()
+                .flatMap(g -> genesToDiseasesMap.get(g).stream())
+                .collect(Collectors.toSet());
+        counts[NUM_DISEASES] = diseases.size();
+        Set<TermId> phenotypes = diseases.stream()
+                .map(diseaseMap::get)
+                .filter(Objects::nonNull)
+                .flatMap(d -> d.getPhenotypicAbnormalityTermIdList().stream())
+                .collect(Collectors.toSet());
+        counts[NUM_PHENOTYPES] = phenotypes.size();
+        return counts;
+    }
     double getAvgDiseases() {
         return avgDiseases;
     }
