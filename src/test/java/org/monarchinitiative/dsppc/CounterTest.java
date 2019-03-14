@@ -1,6 +1,6 @@
 package org.monarchinitiative.dsppc;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
@@ -9,30 +9,30 @@ import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.monarchinitiative.dsppc.Counter.*;
 import static org.monarchinitiative.dsppc.Dsppc.*;
-import static org.monarchinitiative.dsppc.SimFuns.randomSample;
 
 /* created 08 Feb 2019
  *
  */
 public class CounterTest {
-    private Counter ctr;
-    private String dataDir = "src/main/resources/";
-    private List<TermId> allGenes;
-    private Map<TermId, HpoDisease> diseaseMap;
-    private Map<TermId, Set<TermId>> geneToDiseasesMap;
-    private Set<TermId> gpiAnchoredGenes = new TreeSet<>();
-    private Set<TermId> gpiPathwayGenes = new TreeSet<>();
-    private Ontology hpo;
+    private static Counter ctr;
+    private static String dataDir = "src/main/resources/";
+    private static List<TermId> allGenes;
+    private static Map<TermId, HpoDisease> diseaseMap;
+    private static Map<TermId, Set<TermId>> geneToDiseasesMap;
+    private static Set<TermId> gpiAnchoredGenes = new TreeSet<>();
+    private static Set<TermId> gpiPathwayGenes = new TreeSet<>();
+    private static Ontology hpo;
 
     private static final int CARDINALITY = 5;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
         allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
         hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
         diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
@@ -81,7 +81,7 @@ public class CounterTest {
      */
 
     @Test
-    public void countOneSetTest0() {
+    public void countOneSetTest() {
         Set<TermId> genes = new HashSet<>(CARDINALITY);
         genes.add(TermId.of("ENTREZ","293"));
         genes.add(TermId.of("ENTREZ","720"));
@@ -249,25 +249,26 @@ public class CounterTest {
      * OMIM:616924	CHARCOT-MARIE-TOOTH DISEASE, AXONAL, TYPE 2CC; CMT2CC		HP:0007141	OMIM:616924	IEA			HPO:skoehler[2018-10-08]
      *
      * HP:0000006, HP:0000007, HP:0001425, HP:0001426, HP:0001428 are modes of inheritance, not phenotypes
+     * HP:0003581, HP:0003676, HP:0003677, HP:0003678 fall under clinical course, not phenotypes
      * HP:0003828, HP:0003829 are clinical modifiers, not phenotypes
      *
-     * total of distinct phenotypes = 85
+     * total of distinct phenotypes = 81
      */
 
     @Test
-    public void countOneSetTest1() {
+    public void countAndReportTest() throws IOException {
         Set<TermId> genes = new HashSet<>(CARDINALITY);
         genes.add(TermId.of("ENTREZ","675"));
         genes.add(TermId.of("ENTREZ","1639"));
         genes.add(TermId.of("ENTREZ","4744"));
         genes.add(TermId.of("ENTREZ","5630"));
         genes.add(TermId.of("ENTREZ","6647"));
-        int[] counts = ctr.countOneSet(genes);
+        int[] counts = ctr.countAndReport(genes, "Test set");
         assertEquals("NUM_DISEASE_GENES is " + counts[NUM_DISEASE_GENES] + ", should be 5.",
                 5, counts[NUM_DISEASE_GENES]);
-        assertEquals("NUM_DISEASES is " + counts[NUM_DISEASES] + ", should be 9.",
+        assertEquals("NUM_DISEASES is " + counts[NUM_DISEASES] + ", should be 12.",
                 12, counts[NUM_DISEASES]);
-        assertEquals("NUM_PHENOTYES is " + counts[NUM_PHENOTYPES] + ", should be 85.",
-                85, counts[NUM_PHENOTYPES]);
+        assertEquals("NUM_PHENOTYES is " + counts[NUM_PHENOTYPES] + ", should be 81.",
+                81, counts[NUM_PHENOTYPES]);
     }
 }

@@ -7,10 +7,7 @@ import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 import org.monarchinitiative.phenol.io.OntologyLoader;
 import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.TermId;
-//import org.monarchinitiative.phenol.ontology.similarity.AbstractCommonAncestorSimilarity;
 import org.monarchinitiative.phenol.ontology.similarity.PairwiseResnikSimilarity;
-import org.monarchinitiative.phenol.ontology.similarity.PrecomputingPairwiseResnikSimilarity;
-import org.monarchinitiative.phenol.ontology.similarity.ResnikSimilarity;
 
 import java.lang.reflect.*;
 import java.io.File;
@@ -27,9 +24,7 @@ import static org.monarchinitiative.dsppc.Dsppc.*;
  */
 public class ComputeSimilarityTest {
     private static Map<TermId, Double> icMap;
-//    private int minDiseases;
     private static PairwiseResnikSimilarity pwResSim;
-
     // abnormality of the liver
     private static TermId al = TermId.of( "HP:0001392");
     // abnormality of the phalanges of the 5th toe

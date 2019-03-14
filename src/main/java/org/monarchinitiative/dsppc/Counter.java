@@ -4,14 +4,16 @@ package org.monarchinitiative.dsppc;
  * created 06 Feb 2019
  */
 
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 
-import static org.monarchinitiative.dsppc.Dsppc.REPORT_FILENAME;
 import static org.monarchinitiative.dsppc.ComputeSimilarity.NUM_ITER;
+import static org.monarchinitiative.dsppc.Dsppc.REPORT_DIRECTORY;
+import static org.monarchinitiative.dsppc.Dsppc.REPORT_FILENAME;
 import static org.monarchinitiative.dsppc.SimFuns.randomSample;
 
 /**
@@ -20,6 +22,7 @@ import static org.monarchinitiative.dsppc.SimFuns.randomSample;
  *     number of disease genes per set
  *     number of diseases related to those disease genes
  *     number of phenotypes related to those diseases
+ * Can output the counts and corresponding TermIds to results file specified in Dsppc.java.
  */
 class Counter {
     // all human protein-coding genes (excluding GPI pathway genes)
@@ -34,7 +37,8 @@ class Counter {
     private final Map<TermId, HpoDisease> diseaseMap;
     // map from gene ID to set of disease IDs
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
-    // set of genes for proteins that normally are anchored by the GPI pathway anchor
+    // output file
+    private final File resultsFile;
 
     // array indices for the array of counts
     static final int NUM_DISEASE_GENES = 0;
@@ -42,10 +46,23 @@ class Counter {
     static final int NUM_PHENOTYPES = 2;
 
     Counter(List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
-            Map<TermId, Set<TermId>> genesToDiseasesMap) {
+            Map<TermId, Set<TermId>> genesToDiseasesMap) throws IOException {
         this.allGenes = allGenes;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
+
+        File resultsDir = new File(REPORT_DIRECTORY);
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+        resultsFile = new File(resultsDir, REPORT_FILENAME);
+        if (resultsFile.exists()) {
+            // reset file pointer to overwrite previous contents of file
+            try (PrintWriter pw = new PrintWriter(resultsFile)) {}
+        }
+        else {
+            resultsFile.createNewFile();
+        }
     }
 
     /**
@@ -57,7 +74,7 @@ class Counter {
      *     number of distinct phenotypes related to those diseases
      * @param cardinality  how many genes per set
      */
-    void countAverages(int cardinality) {
+    void countAverages(int cardinality) throws IOException {
         int[] counts;
         Set<TermId> randomGenes = null;
         Random rand = new Random();
@@ -71,7 +88,7 @@ class Counter {
             sumDiseases += counts[NUM_DISEASES];
             sumPhenotypes += counts[NUM_PHENOTYPES];
         }
-        countAndReport(randomGenes);
+        countAndReport(randomGenes, "Random");
         double denom = (double) NUM_ITER;
         avgDiseaseGenes = sumDiseaseGenes / denom;
         avgDiseases = sumDiseases / denom;
@@ -108,10 +125,11 @@ class Counter {
      * Same functionality as countOneSet except that this method outputs a report of the
      * disease genes, diseases, and phenotypes for the input set of genes. The name of
      * the report file is specified in Dsppc.java
-     * @param genes  Set of gene TermIds
-     * @return array of int containing the three counts
+     * @param genes         Set of gene TermIds
+     * @param whichGenes    String that identifies which set of genes
+     * @return array of int containing the three counts: disease genes, diseases, phenotypes
      */
-    int[] countAndReport(Set<TermId> genes) {
+    int[] countAndReport(Set<TermId> genes, String whichGenes) throws IOException {
         int[] counts = new int[3];
         Set<TermId> diseaseGenes = new HashSet<>(genes);
         diseaseGenes.retainAll(genesToDiseasesMap.keySet());
@@ -126,8 +144,14 @@ class Counter {
                 .flatMap(d -> d.getPhenotypicAbnormalityTermIdList().stream())
                 .collect(Collectors.toSet());
         counts[NUM_PHENOTYPES] = phenotypes.size();
+
+        reportOneSet(resultsFile, genes, whichGenes + " genes");
+        reportOneSet(resultsFile, diseaseGenes, whichGenes + " disease genes");
+        reportOneSet(resultsFile, diseases, whichGenes + " diseases");
+        reportOneSet(resultsFile, phenotypes, whichGenes + " phenotypes");
         return counts;
     }
+
     double getAvgDiseases() {
         return avgDiseases;
     }
@@ -138,5 +162,25 @@ class Counter {
 
     double getAvgPhenotypes() {
         return avgPhenotypes;
+    }
+
+    /**
+     * Outputs the term ids in the set to report file specified in Dsppc.java, appending to previous
+     * contents of that file.
+     * @param tids    Set of TermIds
+     * @param header  String to say what type of TermIds these are (gene, disease, phenotype, ...)
+     */
+    private void reportOneSet(File file, Set<TermId> tids, String header) throws IOException {
+        TermId[] tidsArray = tids.toArray(new TermId[0]);
+        Arrays.sort(tidsArray);
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+            bw.write(header + " : " + tids.size());
+            bw.newLine();
+            for (TermId tid : tidsArray) {
+                bw.write(tid.getId() + "\t");
+            }
+            bw.newLine();
+            bw.newLine();
+        }
     }
 }

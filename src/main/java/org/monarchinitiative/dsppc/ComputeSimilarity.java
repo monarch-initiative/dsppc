@@ -1,5 +1,6 @@
 package org.monarchinitiative.dsppc;
 
+import java.io.IOException;
 import java.util.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,7 +40,7 @@ class ComputeSimilarity {
 
     ComputeSimilarity(Ontology hpo, Map<TermId, HpoDisease> diseaseMap,
                       Map<TermId, Set<TermId>> geneToDiseasesMap, List<TermId> allGenes,
-                      Set<TermId> gpiPathway, Set<TermId> gpiAnchored) {
+                      Set<TermId> gpiPathway, Set<TermId> gpiAnchored) throws IOException {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
@@ -68,10 +69,10 @@ class ComputeSimilarity {
      * Outputs the number of disease genes, number of diseases, and number of phenotypes for the set of
      * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
      */
-    private void compareCounts() {
+    private void compareCounts() throws IOException {
         Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap);
-        int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes);
-        int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes);
+        int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes, "GPI pathway");
+        int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes, "GPI anchored");
         counter.countAverages(gpiAnchoredGenes.size());
         System.err.println("                   # Disease Genes    # Diseases    # Phenotypes");
         System.err.println(String.format("GPI pathway genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
