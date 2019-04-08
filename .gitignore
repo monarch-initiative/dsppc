@@ -22,3 +22,4 @@ src/main/resources/hp.obo
 target/
 .idea/
 dependency-reduced-pom.xml
+/results/counterOutput.txt
