@@ -28,6 +28,8 @@ public class Dsppc {
     static final String HPO_FILENAME = "hp.obo";
     static final String HPOA_FILENAME = "phenotype.hpoa";
     static final String MIM2GENE_MEDGEN_FILENAME = "mim2gene_medgen";
+    static final String REPORT_DIRECTORY = "results";
+    static final String REPORT_FILENAME = "counterOutput.txt";
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -223,7 +225,7 @@ public class Dsppc {
             dataDir = fixFinalSeparator(cmdl.getOptionValue("d", "src/main/resources/"));
             minDiseases = Integer.parseInt(cmdl.getOptionValue("m", "1"));
             threshold = Double.parseDouble(cmdl.getOptionValue("t", "0.5"));
-            hpo= OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
+            hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
             try {
                 logger.info("DONE: Loading HPO");
                 diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
@@ -237,7 +239,9 @@ public class Dsppc {
 
                 new ComputeSimilarity(hpo, diseaseMap, geneToDiseasesMap, allGenes,
                         gpiPathwayGenes, gpiAnchoredGenes).run(minDiseases, threshold);
-            } catch (IOException | PhenolException e) {
+            } catch (IOException e) {
+                logger.fatal("Fatal error in file I/O. ", e);
+            } catch (PhenolException e) {
                 logger.fatal("Fatal error parsing inputs to dsppc. ", e);
             }
         }
