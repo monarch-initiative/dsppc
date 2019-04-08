@@ -225,7 +225,7 @@ public class Dsppc {
             dataDir = fixFinalSeparator(cmdl.getOptionValue("d", "src/main/resources/"));
             minDiseases = Integer.parseInt(cmdl.getOptionValue("m", "1"));
             threshold = Double.parseDouble(cmdl.getOptionValue("t", "0.5"));
-            hpo= OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
+            hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
             try {
                 logger.info("DONE: Loading HPO");
                 diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);

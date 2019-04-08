@@ -9,6 +9,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
+import org.monarchinitiative.phenol.ontology.data.Ontology;
+import org.monarchinitiative.phenol.ontology.data.Term;
 import org.monarchinitiative.phenol.ontology.data.TermId;
 
 import static org.monarchinitiative.dsppc.ComputeSimilarity.NUM_ITER;
@@ -37,6 +39,8 @@ class Counter {
     private final Map<TermId, HpoDisease> diseaseMap;
     // map from gene ID to set of disease IDs
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
+    // ontology to look up names for TermIds
+    private final Ontology hpo;
     // output file
     private final File resultsFile;
 
@@ -45,11 +49,12 @@ class Counter {
     static final int NUM_DISEASES = 1;
     static final int NUM_PHENOTYPES = 2;
 
-    Counter(List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
+    Counter(Ontology hpo, List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
             Map<TermId, Set<TermId>> genesToDiseasesMap) throws IOException {
         this.allGenes = allGenes;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
+        this.hpo = hpo;
 
         File resultsDir = new File(REPORT_DIRECTORY);
         if (!resultsDir.exists()) {
@@ -171,15 +176,22 @@ class Counter {
      * @param header  String to say what type of TermIds these are (gene, disease, phenotype, ...)
      */
     private void reportOneSet(File file, Set<TermId> tids, String header) throws IOException {
+        String name = "mystery";
+        Map<TermId, Term> termMap = hpo.getTermMap();
         TermId[] tidsArray = tids.toArray(new TermId[0]);
         Arrays.sort(tidsArray);
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
             bw.write(header + " : " + tids.size());
             bw.newLine();
             for (TermId tid : tidsArray) {
-                bw.write(tid.getId() + "\t");
+                if (termMap.containsKey(tid)) {
+                    name = termMap.get(tid).getName();
+                }
+                else if (diseaseMap.containsKey(tid)) {
+                    name = diseaseMap.get(tid).getName();
+                }
+                bw.write(String.format("%s   %s%n", tid.getId(), name));
             }
-            bw.newLine();
             bw.newLine();
         }
     }

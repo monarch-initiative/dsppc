@@ -39,7 +39,7 @@ public class CounterTest {
         geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
         parseGeneSets(dataDir + GENE_SETS_FILENAME, gpiPathwayGenes, gpiAnchoredGenes);
         allGenes.removeAll(gpiPathwayGenes);
-        ctr = new Counter(allGenes, diseaseMap, geneToDiseasesMap);
+        ctr = new Counter(hpo, allGenes, diseaseMap, geneToDiseasesMap);
     }
 
     /* from mim2gene_medgen:

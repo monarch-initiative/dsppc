@@ -70,7 +70,7 @@ class ComputeSimilarity {
      * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
      */
     private void compareCounts() throws IOException {
-        Counter counter = new Counter(allGenes, diseaseMap, genesToDiseasesMap);
+        Counter counter = new Counter(hpo, allGenes, diseaseMap, genesToDiseasesMap);
         int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes, "GPI pathway");
         int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes, "GPI anchored");
         counter.countAverages(gpiAnchoredGenes.size());
