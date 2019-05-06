@@ -29,6 +29,8 @@ import static org.monarchinitiative.dsppc.SimFuns.randomSample;
 class Counter {
     // all human protein-coding genes (excluding GPI pathway genes)
     private final List<TermId> allGenes;
+    // map from ENTREZ id to gene name
+    private final Map<TermId, String> allGenesMap;
     // average number of diseases associated with genes in random sample
     private double avgDiseases = -1.0;
     // average number of disease genes per random sample
@@ -44,14 +46,21 @@ class Counter {
     // output file
     private final File resultsFile;
 
+    // types of things that show up in a report
+    private enum EntityType {
+        DISEASE, GENE, PHENOTYPE
+    }
+
     // array indices for the array of counts
     static final int NUM_DISEASE_GENES = 0;
     static final int NUM_DISEASES = 1;
     static final int NUM_PHENOTYPES = 2;
 
-    Counter(Ontology hpo, List<TermId> allGenes, Map<TermId, HpoDisease> diseaseMap,
-            Map<TermId, Set<TermId>> genesToDiseasesMap) throws IOException {
+    Counter(Ontology hpo, List<TermId> allGenes, Map<TermId, String> allGenesMap,
+            Map<TermId, HpoDisease> diseaseMap, Map<TermId, Set<TermId>> genesToDiseasesMap)
+            throws IOException {
         this.allGenes = allGenes;
+        this.allGenesMap = allGenesMap;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
         this.hpo = hpo;
@@ -150,11 +159,42 @@ class Counter {
                 .collect(Collectors.toSet());
         counts[NUM_PHENOTYPES] = phenotypes.size();
 
-        reportOneSet(resultsFile, genes, whichGenes + " genes");
-        reportOneSet(resultsFile, diseaseGenes, whichGenes + " disease genes");
-        reportOneSet(resultsFile, diseases, whichGenes + " diseases");
-        reportOneSet(resultsFile, phenotypes, whichGenes + " phenotypes");
+        reportOneSet(resultsFile, genes, EntityType.GENE, whichGenes + " genes");
+        reportOneSet(resultsFile, diseaseGenes, EntityType.GENE, whichGenes + " disease genes");
+        reportOneSet(resultsFile, diseases, EntityType.DISEASE, whichGenes + " diseases");
+        reportOneSet(resultsFile, phenotypes, EntityType.PHENOTYPE, whichGenes + " phenotypes");
         return counts;
+    }
+
+    private SortedMap<String, TermId> findNames(Set<TermId> tids, EntityType typ) {
+        TreeMap<String, TermId> names = new TreeMap<>();
+
+        switch (typ) {
+            case DISEASE:
+                for (TermId tid : tids) {
+                    if (diseaseMap.containsKey(tid)) {
+                        names.put(diseaseMap.get(tid).getName(), tid);
+                    } else {
+                        names.put(tid.getId(), tid);
+                    }
+                }
+                break;
+            case GENE:
+                for (TermId tid : tids) {
+                    if (allGenesMap.containsKey(tid)) {
+                        names.put(allGenesMap.get(tid), tid);
+                    } else {
+                        names.put(tid.getId(), tid);
+                    }
+                }
+                break;
+            case PHENOTYPE:
+                Map<TermId, Term> termMap = hpo.getTermMap();
+                for (TermId tid : tids) {
+                    names.put(termMap.get(tid).getName(), tid);
+                }
+        }
+        return names;
     }
 
     double getAvgDiseases() {
@@ -172,25 +212,20 @@ class Counter {
     /**
      * Outputs the term ids in the set to report file specified in Dsppc.java, appending to previous
      * contents of that file.
+     * @param file    File for output
      * @param tids    Set of TermIds
-     * @param header  String to say what type of TermIds these are (gene, disease, phenotype, ...)
+     * @param typ     EntityType that corresponds to the tids
+     * @param header  String to say what type of TermIds these are (gene, disease, phenotype)
+     *                and where they come from (GPI pathway, GPI anchored, ...)
      */
-    private void reportOneSet(File file, Set<TermId> tids, String header) throws IOException {
-        String name = "mystery";
-        Map<TermId, Term> termMap = hpo.getTermMap();
-        TermId[] tidsArray = tids.toArray(new TermId[0]);
-        Arrays.sort(tidsArray);
+    private void reportOneSet(File file, Set<TermId> tids, EntityType typ, String header)
+            throws IOException {
+        Map<String, TermId> names = findNames(tids, typ);
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
             bw.write(header + " : " + tids.size());
             bw.newLine();
-            for (TermId tid : tidsArray) {
-                if (termMap.containsKey(tid)) {
-                    name = termMap.get(tid).getName();
-                }
-                else if (diseaseMap.containsKey(tid)) {
-                    name = diseaseMap.get(tid).getName();
-                }
-                bw.write(String.format("%s   %s%n", tid.getId(), name));
+            for (Map.Entry<String, TermId> e : names.entrySet()) {
+                bw.write(String.format("%10s   %s%n", e.getValue().getId(), e.getKey()));
             }
             bw.newLine();
         }
