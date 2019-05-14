@@ -26,7 +26,7 @@ import static org.monarchinitiative.dsppc.SimFuns.*;
 class ComputeSimilarity {
 
     private final List<TermId> allDiseaseGenes;
-    private final List<TermId> allGenes;
+    private final List<TermId> allGenesMinusPathway;
     private final Map<TermId, HpoDisease> diseaseMap;
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     private final Set<TermId> gpiAnchoredGenes;
@@ -35,7 +35,7 @@ class ComputeSimilarity {
     private final Map<TermId, Double> icMap;
 
     private static final Logger logger = LogManager.getLogger();
-    static final int NUM_ITER = 1000;
+    static final int NUM_ITER = 10000;
     private static final int NUM_THREADS = 4;
 
     ComputeSimilarity(Ontology hpo, Map<TermId, HpoDisease> diseaseMap,
@@ -46,20 +46,20 @@ class ComputeSimilarity {
         this.genesToDiseasesMap = geneToDiseasesMap;
         gpiAnchoredGenes = new HashSet<>(gpiAnchored);
         gpiPathwayGenes = new HashSet<>(gpiPathway);
-        this.allGenes = new ArrayList<>(allGenesMap.keySet());
+        this.allGenesMinusPathway = new ArrayList<>(allGenesMap.keySet());
         // delete the GPI pathway genes from the set over which we will randomly choose genes
         // to compare to the GPI pathway genes
-        this.allGenes.removeAll(gpiPathwayGenes);
+        this.allGenesMinusPathway.removeAll(gpiPathwayGenes);
         compareCounts(allGenesMap);
         // for randomization, consider only disease genes and eliminate genes which are not associated with
         // any disease
-        allDiseaseGenes = new ArrayList<>(this.allGenes);
-        System.err.println("All genes: " + allGenes.size() + " ; all GPI pathway genes: " +
+        allDiseaseGenes = new ArrayList<>(this.allGenesMinusPathway);
+        logger.info("All genes minus pathway: " + allGenesMinusPathway.size() + " ; all GPI pathway genes: " +
                 gpiPathwayGenes.size() + " ; all GPI anchored genes: " + gpiAnchoredGenes.size());
         allDiseaseGenes.retainAll(genesToDiseasesMap.keySet());
         gpiAnchoredGenes.retainAll(genesToDiseasesMap.keySet());
         gpiPathwayGenes.retainAll(genesToDiseasesMap.keySet());
-        System.err.println("All disease genes: " + allDiseaseGenes.size() +
+        logger.info("All disease genes: " + allDiseaseGenes.size() +
                 " ; all GPI pathway disease genes: " + gpiPathwayGenes.size() +
                 " ; all GPI anchored disease genes: " + gpiAnchoredGenes.size());
         icMap = computeICmap();
@@ -67,23 +67,24 @@ class ComputeSimilarity {
 
     /**
      * Outputs the number of disease genes, number of diseases, and number of phenotypes for the set of
-     * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
+     * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenesMinusPathway.
      * @param allGenesMap mapping from ENTREZ id to gene name
      */
     private void compareCounts(Map<TermId, String> allGenesMap) throws IOException {
-        Counter counter = new Counter(hpo, allGenes, allGenesMap, diseaseMap, genesToDiseasesMap);
+        Counter counter = new Counter(hpo, allGenesMinusPathway, allGenesMap, diseaseMap, genesToDiseasesMap);
         int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes, "GPI pathway");
         int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes, "GPI anchored");
-        counter.countAverages(gpiAnchoredGenes.size());
-        System.err.println("                   # Disease Genes    # Diseases    # Phenotypes");
-        System.err.println(String.format("GPI pathway genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+        counter.countAverages(gpiAnchoredGenes.size(), anchoredCounts[NUM_DISEASE_GENES]);
+        logger.info("                   # Disease Genes    # Diseases    # Phenotypes");
+        logger.info(String.format("GPI pathway genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 (float) pathwayCounts[NUM_DISEASE_GENES], (float) pathwayCounts[NUM_DISEASES],
                 (float) pathwayCounts[NUM_PHENOTYPES]));
-        System.err.println(String.format("GPI anchored genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+        logger.info(String.format("GPI anchored genes\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 (float) anchoredCounts[NUM_DISEASE_GENES], (float) anchoredCounts[NUM_DISEASES],
                 (float) anchoredCounts[NUM_PHENOTYPES]));
-        System.err.println(String.format("Average of random\t\t%6.2f\t\t%6.2f\t\t%6.2f",
+        logger.info(String.format("Average of random\t\t%6.2f\t\t%6.2f\t\t%6.2f",
                 counter.getAvgDiseaseGenes(), counter.getAvgDiseases(), counter.getAvgPhenotypes()));
+        logger.info("p value : " + counter.getPValue());
     }
 
     /**
