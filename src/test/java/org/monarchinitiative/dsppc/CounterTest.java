@@ -21,25 +21,29 @@ import static org.monarchinitiative.dsppc.Dsppc.*;
  */
 public class CounterTest {
     private static Counter ctr;
-    private static String dataDir = "src/main/resources/";
-    private static List<TermId> allGenes;
-    private static Map<TermId, HpoDisease> diseaseMap;
-    private static Map<TermId, Set<TermId>> geneToDiseasesMap;
-    private static Set<TermId> gpiAnchoredGenes = new TreeSet<>();
-    private static Set<TermId> gpiPathwayGenes = new TreeSet<>();
-    private static Ontology hpo;
+//    private static String dataDir = "src/main/resources/";
+//    private static List<TermId> allGenes;
+//    private static Map<TermId, HpoDisease> diseaseMap;
+//    private static Map<TermId, Set<TermId>> geneToDiseasesMap;
+//    private static Set<TermId> gpiAnchoredGenes = new TreeSet<>();
+//    private static Set<TermId> gpiPathwayGenes = new TreeSet<>();
+//    private static Ontology hpo;
 
     private static final int CARDINALITY = 5;
 
     @BeforeClass
     public static void setUp() throws Exception {
-        allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
-        hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
-        diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
-        geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
+        String dataDir = "src/main/resources/";
+        Map<TermId, String> allGenesMap = parseAllGenes(dataDir + ALL_GENES_FILENAME);
+        List<TermId> allGenes = new ArrayList<>(allGenesMap.keySet());
+        Ontology hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
+        Map<TermId, HpoDisease> diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
+        Map<TermId, Set<TermId>> geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
+        Set<TermId> gpiAnchoredGenes = new TreeSet<>();
+        Set<TermId> gpiPathwayGenes = new TreeSet<>();
         parseGeneSets(dataDir + GENE_SETS_FILENAME, gpiPathwayGenes, gpiAnchoredGenes);
         allGenes.removeAll(gpiPathwayGenes);
-        ctr = new Counter(hpo, allGenes, diseaseMap, geneToDiseasesMap);
+        ctr = new Counter(hpo, allGenes, allGenesMap, diseaseMap, geneToDiseasesMap);
     }
 
     /* from mim2gene_medgen:

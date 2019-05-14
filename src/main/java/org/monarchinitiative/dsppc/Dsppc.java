@@ -43,13 +43,13 @@ public class Dsppc {
     }
 
     /**
-     * Parses the ALL_GENES_FILENAME file to create a set of genes identified by ENTREZ id.
+     * Parses the ALL_GENES_FILENAME file to create a mapping from ENTREZ id to gene name.
      * @param inputPath    path to ALL_GENES_FILENAME file
-     * @return set of ENTREZ gene TermIds
+     * @return mapping from ENTREZ gene TermId to gene name
      * @throws IOException if cannot open/read input file
      */
-    static List<TermId> parseAllGenes(String inputPath) throws IOException {
-        List<TermId> allGenes = new ArrayList<>();
+    static SortedMap<TermId, String> parseAllGenes(String inputPath) throws IOException {
+        SortedMap<TermId, String> allGenes = new TreeMap<>();
         BufferedReader br = new BufferedReader(new FileReader(inputPath));
         String[] fields;
         String line;
@@ -57,7 +57,7 @@ public class Dsppc {
 
         while ((line = br.readLine()) != null) {
             fields = line.split("\t");
-            allGenes.add(TermId.of(entrezprefix, fields[0]));
+            allGenes.put(TermId.of(entrezprefix, fields[0]), fields[1]);
         }
         br.close();
         return allGenes;
@@ -211,7 +211,7 @@ public class Dsppc {
 
     public static void main(String[] args) {
         final CommandLine cmdl = parseCommandLineArgs(args);
-        final List<TermId> allGenes;
+        final Map<TermId, String> allGenes;
         final Map<TermId, HpoDisease> diseaseMap;
         final Map<TermId, Set<TermId>> geneToDiseasesMap;
         final Set<TermId> gpiAnchoredGenes = new TreeSet<>();

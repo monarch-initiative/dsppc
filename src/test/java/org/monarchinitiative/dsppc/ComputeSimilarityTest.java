@@ -44,7 +44,7 @@ public class ComputeSimilarityTest {
         Set<TermId> gpiAnchoredGenes = new TreeSet<>();
         Set<TermId> gpiPathwayGenes = new TreeSet<>();
 
-        List<TermId> allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
+        Map<TermId, String> allGenes = parseAllGenes(dataDir + ALL_GENES_FILENAME);
         Ontology hpo = OntologyLoader.loadOntology(new File(dataDir + HPO_FILENAME));
         Map<TermId, HpoDisease> diseaseMap = parseHPOA(dataDir + HPOA_FILENAME, hpo);
         Map<TermId, Set<TermId>> geneToDiseasesMap = parseMedgen(dataDir + MIM2GENE_MEDGEN_FILENAME);
