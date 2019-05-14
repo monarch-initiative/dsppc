@@ -39,18 +39,18 @@ class ComputeSimilarity {
     private static final int NUM_THREADS = 4;
 
     ComputeSimilarity(Ontology hpo, Map<TermId, HpoDisease> diseaseMap,
-                      Map<TermId, Set<TermId>> geneToDiseasesMap, List<TermId> allGenes,
+                      Map<TermId, Set<TermId>> geneToDiseasesMap, Map<TermId, String> allGenesMap,
                       Set<TermId> gpiPathway, Set<TermId> gpiAnchored) throws IOException {
         this.hpo = hpo;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = geneToDiseasesMap;
-        this.allGenes = allGenes;
         gpiAnchoredGenes = new HashSet<>(gpiAnchored);
         gpiPathwayGenes = new HashSet<>(gpiPathway);
+        this.allGenes = new ArrayList<>(allGenesMap.keySet());
         // delete the GPI pathway genes from the set over which we will randomly choose genes
         // to compare to the GPI pathway genes
         this.allGenes.removeAll(gpiPathwayGenes);
-        compareCounts();
+        compareCounts(allGenesMap);
         // for randomization, consider only disease genes and eliminate genes which are not associated with
         // any disease
         allDiseaseGenes = new ArrayList<>(this.allGenes);
@@ -68,9 +68,10 @@ class ComputeSimilarity {
     /**
      * Outputs the number of disease genes, number of diseases, and number of phenotypes for the set of
      * GPI anchored genes and averaged over NUM_ITER sets of the same size chosen at random from allGenes.
+     * @param allGenesMap mapping from ENTREZ id to gene name
      */
-    private void compareCounts() throws IOException {
-        Counter counter = new Counter(hpo, allGenes, diseaseMap, genesToDiseasesMap);
+    private void compareCounts(Map<TermId, String> allGenesMap) throws IOException {
+        Counter counter = new Counter(hpo, allGenes, allGenesMap, diseaseMap, genesToDiseasesMap);
         int[] pathwayCounts = counter.countAndReport(gpiPathwayGenes, "GPI pathway");
         int[] anchoredCounts = counter.countAndReport(gpiAnchoredGenes, "GPI anchored");
         counter.countAverages(gpiAnchoredGenes.size());
