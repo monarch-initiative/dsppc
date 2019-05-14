@@ -8,6 +8,9 @@ import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import org.monarchinitiative.phenol.formats.hpo.HpoDisease;
 import org.monarchinitiative.phenol.ontology.data.Ontology;
 import org.monarchinitiative.phenol.ontology.data.Term;
@@ -55,6 +58,8 @@ class Counter {
     static final int NUM_DISEASE_GENES = 0;
     static final int NUM_DISEASES = 1;
     static final int NUM_PHENOTYPES = 2;
+
+    private static final Logger logger = LogManager.getLogger();
 
     Counter(Ontology hpo, List<TermId> allGenes, Map<TermId, String> allGenesMap,
             Map<TermId, HpoDisease> diseaseMap, Map<TermId, Set<TermId>> genesToDiseasesMap)
