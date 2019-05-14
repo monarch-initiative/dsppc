@@ -31,7 +31,7 @@ import static org.monarchinitiative.dsppc.SimFuns.randomSample;
  */
 class Counter {
     // all human protein-coding genes (excluding GPI pathway genes)
-    private final List<TermId> allGenes;
+    private final List<TermId> allGenesMinusPathway;
     // map from ENTREZ id to gene name
     private final Map<TermId, String> allGenesMap;
     // average number of diseases associated with genes in random sample
@@ -46,6 +46,8 @@ class Counter {
     private final Map<TermId, Set<TermId>> genesToDiseasesMap;
     // ontology to look up names for TermIds
     private final Ontology hpo;
+    // pValue comparing incidence of disease genes among GPI anchored genes vs. all protein-coding genes
+    private double pValue = -1.0;
     // output file
     private final File resultsFile;
 
@@ -61,10 +63,10 @@ class Counter {
 
     private static final Logger logger = LogManager.getLogger();
 
-    Counter(Ontology hpo, List<TermId> allGenes, Map<TermId, String> allGenesMap,
+    Counter(Ontology hpo, List<TermId> allGenesMinusPathway, Map<TermId, String> allGenesMap,
             Map<TermId, HpoDisease> diseaseMap, Map<TermId, Set<TermId>> genesToDiseasesMap)
             throws IOException {
-        this.allGenes = allGenes;
+        this.allGenesMinusPathway = allGenesMinusPathway;
         this.allGenesMap = allGenesMap;
         this.diseaseMap = diseaseMap;
         this.genesToDiseasesMap = genesToDiseasesMap;
@@ -86,32 +88,42 @@ class Counter {
 
     /**
      * Finds averages over NUM_ITER sets of genes
-     * each set chosen at random from the set of all genes
+     * each set chosen at random from the set of all protein-coding genes
      * average for three counts:
      *     number of disease genes in the set
      *     number of distinct diseases related to those disease genes
      *     number of distinct phenotypes related to those diseases
+     * Also calculates p value for percentage of disease genes in GPI anchored gene set vs. all genes.
      * @param cardinality  how many genes per set
+     * @param anchoredNumDiseaseGenes    number of disease genes among GPI anchored genes
      */
-    void countAverages(int cardinality) throws IOException {
+    void countAverages(int cardinality, int anchoredNumDiseaseGenes) throws IOException {
+        ArrayList<TermId> allGenesList = new ArrayList<>(allGenesMap.keySet());
         int[] counts;
+        int howManyExceed = 0;
         Set<TermId> randomGenes = null;
         Random rand = new Random();
         int sumDiseases = 0;
         int sumDiseaseGenes = 0;
         int sumPhenotypes = 0;
         for (int i = 0; i < NUM_ITER; i++) {
-            randomGenes = randomSample(rand, cardinality, allGenes);
+            randomGenes = randomSample(rand, cardinality, allGenesList);
             counts = countOneSet(randomGenes);
             sumDiseaseGenes += counts[NUM_DISEASE_GENES];
             sumDiseases += counts[NUM_DISEASES];
             sumPhenotypes += counts[NUM_PHENOTYPES];
+            if (anchoredNumDiseaseGenes > counts[NUM_DISEASE_GENES]) {
+                howManyExceed++;
+            }
         }
+        logger.info(String.format("allGenesMinusPathway size %d ; allGenesMap size %d",
+                allGenesMinusPathway.size(), allGenesMap.size()));
         countAndReport(randomGenes, "Random");
         double denom = (double) NUM_ITER;
         avgDiseaseGenes = sumDiseaseGenes / denom;
         avgDiseases = sumDiseases / denom;
         avgPhenotypes = sumPhenotypes / denom;
+        pValue = howManyExceed / denom;
     }
 
     /**
@@ -213,6 +225,8 @@ class Counter {
     double getAvgPhenotypes() {
         return avgPhenotypes;
     }
+
+    double getPValue() { return pValue; }
 
     /**
      * Outputs the term ids in the set to report file specified in Dsppc.java, appending to previous
